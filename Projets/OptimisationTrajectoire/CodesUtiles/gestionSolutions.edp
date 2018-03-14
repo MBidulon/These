@@ -1,0 +1,44 @@
+macro savesolution (it,Th, var, stringvar, num){
+		if(num==0){
+			if(it==0){exec("mkdir "+stringvar);}
+			if(it<10) savesol(stringvar+"/00"+it+".sol",Th,var);
+			if(it>9 && it<100) savesol(stringvar+"/0"+it+".sol",Th,var);
+			if(it>99) savesol(stringvar+"/"+it+".sol",Th,var);
+		}
+		else{
+			if(it==0){exec("mkdir "+stringvar+num);}
+			if(it<10) savesol(stringvar+num+"/00"+it+".sol",Th,var);
+			if(it>9 && it<100) savesol(stringvar+num+"/0"+it+".sol",Th,var);
+			if(it>99) savesol(stringvar+num+"/"+it+".sol",Th,var);
+		}
+}		
+
+
+macro readSol(nomFichier, var,np){
+			string s;
+			real[int] loadsol(np);
+			{ifstream f(nomFichier);
+			 for(int i=0; i<8; i++) {
+			    f>>s;
+			  }
+			  for(int i=0; i<np; i++) {
+			    f>>loadsol[i];
+			  }
+			  var[] = loadsol;}
+}//EOM			  
+			  
+
+macro readTemp(it, var,stringvar,np,num){
+		if(num==0){
+			if(it<10) readSol(stringvar+"/00"+it+".sol",var,np);
+			if(it>9 && it<100) readSol(stringvar+"/0"+it+".sol",var,np);
+			if(it>99) readSol(stringvar+"/"+it+".sol",var,np);
+		}
+		else{
+			if(it<10) readSol(stringvar+num+"/00"+it+".sol",var,np);
+			if(it>9 && it<100) readSol(stringvar+num+"/0"+it+".sol",var,np);
+			if(it>99) readSol(stringvar+num+"/"+it+".sol",var,np);
+		}	
+			
+}//EOM
+			  
