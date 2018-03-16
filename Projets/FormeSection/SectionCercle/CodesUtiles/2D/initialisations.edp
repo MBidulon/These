@@ -1,0 +1,82 @@
+	
+	func real cercle(real rayon, real centrex, real centrey){
+		real a;
+		a=((x-centrex))^2.+((y-centrey))^2.-rayon^2.;
+		return(a);
+	}
+		
+	func real ellipse(real gAxe, real pAxe, real centrex, real centrey){
+		real a;
+		a=((x-centrex)/gAxe)^2.+((y-centrey)/pAxe)^2.-1;
+		return(-a);
+	}	
+	
+	func real initialisationSymBridge (int kx, int ky){
+		real a;	
+		a=-0.1-cos(pi*kx*(x-0.25))*sin(pi*ky*(y-0.25));
+		return(a);
+	}
+	
+	
+	func real toutPlein(){
+		return(-1);
+	}
+	
+	
+	func real toutVide(){
+		return(1);
+	}
+	
+	
+	func real moitiePlein(){
+		real a;
+		a=1+(-2)*(x<0.5);
+		return(a);
+	}
+	
+	
+	func real plein1trouEll(real gAxe, real pAxe, real centrex, real centrey){
+		real a;
+		a=-(((x-centrex)/gAxe)^2.+((y-centrey)/pAxe)^2.-1);
+		return(a);
+	}
+	
+	
+	func real vide1PleinEll(real gAxe, real pAxe, real centrex, real centrey){
+		real a;
+		a=((x-centrex)/gAxe)^2.+((y-centrey)/pAxe)^2.-1;
+		return(a);
+	}
+	
+	
+	func real moitiePlein1trouMoitieVideEll(){
+		real a;
+		a=-(((x-0.5)/0.3)^2.+((y-0.2)/0.1)^2.-1);
+		a=1+(a-1)*(y<0.5);
+		return(a);
+	}
+	
+	
+	func real deuxPleins1Vide(){
+		real a;
+		a=1-2*(x<0.25)-2*(x>0.75);
+		return(a);
+	}
+	
+	func real deuxPleinsTroisVides(){
+		real a;
+		a=1-2*(x>0.2)*(x<0.3)-2*(x>0.7)*(x<0.8);
+		return(a);
+	}
+	
+	func real deuxVidesTroisPleins(){
+		real a;
+		real b;
+		
+		a=-1+2*(x>0.2)*(x<0.3)+2*(x>0.7)*(x<0.8);
+		a=1+(a-1)*(y<0.5);
+		a=a;
+		
+		return(a);
+	}
+		

@@ -5,8 +5,9 @@ import matplotlib.pyplot as plt;
 
 parser=argparse.ArgumentParser();
 parser.add_argument('-nomVar',nargs='*');
-parser.add_argument('-nomVarNonOkIt0',nargs='*');
+parser.add_argument('-nomVarNonOkIt0',nargs='*', default=None);
 parser.add_argument('-fichier',help='fichier de stockage des infos');
+parser.add_argument('-stockage',help='fichier de stockage des plot');
 
 args=parser.parse_args();
 
@@ -18,24 +19,34 @@ abscisse2=data[1::1,0]
 
 for i in range(nbVar-1) :
     variable=args.nomVar[i+1]
-    if(variable in args.nomVarNonOkIt0):
-        tab=data[1::1,i+1]
-        figure=plt.figure(i+1)
-        plt.plot(abscisse2,tab)
-        plt.title("Evolution de "+variable)
-        plt.xlabel("iteration")
-        plt.ylabel(variable)
-        s=variable+".png"
-        figure.savefig(s)
-    else :
+    if args.nomVarNonOkIt0 is None :
         tab=data[:,i+1]
         figure=plt.figure(i+1)
         plt.plot(abscisse,tab)
         plt.title("Evolution de "+variable)
         plt.xlabel("iteration")
         plt.ylabel(variable)
-        s=variable+".png"
+        s=args.stockage+"/"+variable+".png"
         figure.savefig(s)
+    else :
+        if(variable in args.nomVarNonOkIt0):
+            tab=data[1::1,i+1]
+            figure=plt.figure(i+1)
+            plt.plot(abscisse2,tab)
+            plt.title("Evolution de "+variable)
+            plt.xlabel("iteration")
+            plt.ylabel(variable)
+            s=args.stockage+"/"+variable+".png"
+            figure.savefig(s)
+        else :
+            tab=data[:,i+1]
+            figure=plt.figure(i+1)
+            plt.plot(abscisse,tab)
+            plt.title("Evolution de "+variable)
+            plt.xlabel("iteration")
+            plt.ylabel(variable)
+            s=args.stockage+"/"+variable+".png"
+            figure.savefig(s)
 
 
 

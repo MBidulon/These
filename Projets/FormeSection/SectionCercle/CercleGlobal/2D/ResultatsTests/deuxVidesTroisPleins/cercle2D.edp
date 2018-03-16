@@ -1,0 +1,277 @@
+load "medit" //pour freefem
+load "iovtk" //pour paraview
+load "distance"
+include "/Users/mathilde/These/Projets/FormeSection/SectionCercle/CodesUtiles/2D/initialisations.edp"
+
+string pathAdvect="/Users/mathilde/bin/advect";
+string pathStockage="/Users/mathilde/These/Projets/FormeSection/SectionCercle/CercleGlobal/2D/ResultatsTests";
+
+int debugPlot=0;
+int debugSavesol=1;
+real eps1=0.0000001;
+real coefAlpha=1.;
+
+		string path=pathStockage+"/deuxVidesTroisPleins";
+		exec("mkdir "+path);
+		exec("cp cercle2D.edp "+path+"/cercle2D.edp");
+		real[int] visoV=[-50,-0.0001,0.0001,50]; 
+		real[int] visoV2=[-50,-0.0001,0.0001,50];
+/* ----- PARAM OPTIMISATION ----- */
+
+int NB=30;
+real coef=10; real coefini=10;
+	
+/* ----- MAILLAGE ----- */
+
+int n=40;	
+real xM0=0.; real xM1=1.; real yM0=0; real yM1=1.;
+int numLabel=2;
+	
+		int[int] lab=[numLabel,numLabel,numLabel,numLabel];
+		mesh Th=square(n,n,[xM0+(xM1-xM0)*x, yM0+(yM1-yM0)*y], label=lab);
+		savemesh(Th,"templvs.mesh");	
+		exec("cat templvs.mesh | sed 's/MeshVersionFormatted 0/MeshVersionFormatted 1/' > toto.mesh");
+		exec("mv toto.mesh templvs.mesh"); 
+		fespace Vh0(Th,P0); fespace Vh02(Th,[P0,P0]);
+		fespace Vh1(Th,P1); fespace Vh12(Th,[P1,P1]);
+		Vh1 aux1; Vh0 aux0; Vh12 [aux12x, aux12y]; Vh02 [aux02x, aux02y];
+	
+		/* A propos du maillage */		
+		Vh0 meshSizes=hTriangle;		
+		real meshsiz=meshSizes[].max; //maximal length of edges
+		int np=Th.nv; int nt=Th.nt;
+		real alpha=meshsiz;
+	
+	
+/* ----- INITIALISATION ----- */
+		Vh1 distVraie, distVraieTest, auxDist, redist;
+		Vh1 cercleAp, Diff;
+		real[int] loadsol(np);
+		
+//	distVraie=toutPlein();
+//	distVraie=toutVide();
+//	distVraie=moitiePlein();
+//	distVraie=plein1trouEll(0.4,0.2,0.5,0.5);
+//	distVraie=vide1PleinEll(0.4,0.2,0.5,0.5);
+//	distVraie=moitiePlein1trouMoitieVideEll();
+//	distVraie=-moitiePlein1trouMoitieVideEll();
+//	distVraie=deuxPleins1Vide();
+//	distVraie=deuxPleinsTroisVides();
+	distVraie=deuxVidesTroisPleins();
+//	distVraie=initialisationSymBridge (2,2);
+//	distVraie=initialisationSymBridge (3,4);
+
+		distVraieTest=distVraie;
+		func distaux = (distVraieTest(x,y)<=0)*0+(distVraieTest(x,y)>0)*distVraieTest(x,y);
+		problem zeroOnMeshB(auxDist,aux1)= int2d(Th)(auxDist*aux1)-int2d(Th)(distVraieTest*aux1)+on(2,auxDist=distaux);
+		zeroOnMeshB;
+		distVraieTest=auxDist+0.0001;
+		distance(Th,distVraieTest,redist[], distmax=10);
+		distVraieTest[]=redist[];
+		distVraie=distVraieTest;
+	
+		if(debugPlot==1){plot(distVraie, fill=1, value=1, viso=visoV, WindowIndex=1, wait=1, cmm="distVraie initialisation");}
+
+
+/* ----- CALCULS PREMIERS ----- */
+			Vh1 X=eps1+(1-eps1)*(distVraie<0);
+
+		/* Normale, vitesse, H : 
+			/*preparation du calcul*/
+			Vh1 nx, ny, norme; Vh12 [zx,zy], [nx1, ny1];
+			Vh0 H, nabla; Vh02 [nx0,ny0];
+				
+			varf reconsN([zx,zy],[aux12x,aux12y]) = int2d(Th)(zx*aux12x+zy*aux12y);
+			matrix Anormal=reconsN(Vh12,Vh12);		
+			varf reconsNrhs([zx,zy],[aux12x,aux12y]) = int2d(Th)(nx0*aux12x+ny0*aux12y);
+		
+			/* Normale calcul */		
+			nabla=(dx(distVraie))^2+(dy(distVraie))^2;
+			[nx0,ny0]=[dx(distVraie)/(sqrt(nabla+eps1^2)),dy(distVraie)/(sqrt(nabla+eps1^2))];
+			
+			real[int] bNormal=reconsNrhs(0,Vh12);	
+			zx[]=Anormal^-1*bNormal;					 
+			norme = sqrt(zx^2+zy^2+eps1^2);
+			nx=zx/norme; ny=zy/norme;						
+			H=dx(nx)+dy(ny);
+			
+			if (debugPlot==1){plot(distVraie, [nx,ny], viso=visoV, WindowIndex=2, wait=1, cmm="Normale Initialisation");}
+						
+		/* Contrainte, grh */	
+			real Aire, Cx, Cy, A1,A2,A3;
+			Vh1 Dx, Dy, DE, dist, dist2;
+			Vh0 grh;
+			real contrainte, contrainteTest,rayon, centreX, centreY;
+			
+			macro computeGrhCercleAux(Th, distVraie, X, nx, ny, H){	
+				Aire=int2d(Th)(X);
+				Cx=int2d(Th)(X*x);
+				Cy=int2d(Th)(X*y);
+				
+				Dx=x-Cx/(Aire+eps1);
+				Dy=y-Cy/(Aire+eps1);
+				DE=sqrt(Dx^2.+Dy^2.);
+				dist=DE-sqrt(Aire/pi);
+				dist2=dist*dist;
+				
+				A1=int1d(Th,levelset=distVraie)(2*dist*Dx/(Aire*DE+eps1));
+				A2=int1d(Th,levelset=distVraie)(2*dist*Dy/(Aire*DE+eps1));
+				A3=int1d(Th,levelset=distVraie)(dist/sqrt(Aire*pi+eps1));
+				
+				grh=dx(dist2)*nx+dy(dist2)*ny+H*dist2-A1*Dx-A2*Dy-A3;
+			}//EOM
+	
+		
+			computeGrhCercleAux(Th,distVraie,X,nx,ny,H);
+			contrainte=int1d(Th,levelset=distVraie)(dist2);
+			if(debugPlot==1){
+				rayon=sqrt(Aire/pi); centreX=Cx/Aire; centreY=Cy/Aire;
+				cercleAp=cercle(rayon, centreX, centreY);
+				plot(cercleAp, fill=1, value=1, viso=visoV, WindowIndex=3, wait=1, cmm="Cercle approximateur initialisation");
+				Diff=(distVraie>0)-(cercleAp>0);
+				plot(Diff, fill=1, value=1, viso=visoV2, WindowIndex=4, wait=1, cmm="difference entre les deux initialisation");
+			}
+		
+		/* Calcul de la vitesse */
+			Vh1 vh, vhTest;		
+			problem smoothingDistVraie (vhTest,aux1)=int2d(Th)( (coefAlpha*alpha)^2.*( dx(vhTest)*dx(aux1)+dy(vhTest)*dy(aux1)) + vhTest*aux1) - 										int1d(Th,levelset=distVraie)(grh*aux1);
+	
+			smoothingDistVraie;
+			vh=-vhTest;
+			
+			if(debugPlot==1){plot(vh, fill=1, viso=visoV,WindowIndex=5, wait=1);}		
+			[nx1, ny1]=[vh*nx, vh*ny];
+
+
+
+
+/* ----- BOUCLE ----- */
+		int itB=0; int acc=1;
+		real step, maxV;
+		
+		string dummy, svol;
+		
+		{svol = path+"/valeurs.data";
+			ofstream f(svol);
+			f<<itB<<" "<<acc<<" "<<contrainte<<" "<<coef<<endl;}
+
+
+
+
+	
+		for (itB=1;itB< NB;itB=itB+1){
+			cout<<endl;
+			cout<<"iteration "<<itB<<endl;
+			
+			/* on met les variables de test à 0 */
+			distVraieTest=distVraie;
+			contrainteTest=0;
+			vhTest=0;
+			
+			/* calcul du pas */
+			maxV = max(vh[].max,-vh[].min);
+			step=coef*meshsiz/(maxV+eps1);
+			
+			/* advection */	
+			savesol("templvs.chi.sol",Th,distVraieTest);
+			savesol("templvs.sol",Th,[nx1,ny1]);
+			cout<<"advection"<<endl;
+			exec(pathAdvect+" templvs.mesh -dt " + step + " -s templvs.sol -c templvs.chi.sol -o templvs.chi.sol >> so.res ");
+			cout<<"fin advection"<<endl;
+			
+			{ifstream f("templvs.chi.sol");
+			 for(int i=0; i<8; i++) {
+			    f>>dummy;
+			  }
+			  for(int i=0; i<np; i++) {
+			    f>>loadsol[i];
+			  }
+			  distVraieTest[] = loadsol;}
+			
+			/* redistanciation fonction trouvée */
+			func distaux = (distVraieTest(x,y)<=0)*0+(distVraieTest(x,y)>0)*distVraieTest(x,y);					
+			zeroOnMeshB;
+			distVraieTest=auxDist+0.0001;
+			distance(Th,distVraieTest,redist[], distmax=10);
+			distVraieTest[]=redist[];
+	
+			if(debugPlot==1){plot(distVraieTest, fill=1, value=1, viso=visoV, WindowIndex=6, wait=1, cmm="it "+ itB +", distVraieTest");}
+			
+			/* densité */
+			X=eps1+(1-eps1)*(distVraieTest<0);
+			
+			/* normale */
+			nabla=(dx(distVraie))^2+(dy(distVraie))^2;
+			[nx0,ny0]=[dx(distVraie)/(sqrt(nabla+eps1^2)),dy(distVraie)/(sqrt(nabla+eps1^2))];
+			real[int] bNormal=reconsNrhs(0,Vh12);	
+			zx[]=Anormal^-1*bNormal;					 
+			norme = sqrt(zx^2+zy^2+eps1^2);
+			nx=zx/norme; ny=zy/norme;						
+			H=dx(nx)+dy(ny);
+			
+			/* cercle */
+			computeGrhCercleAux(Th,distVraieTest,X,nx,ny,H);
+			contrainteTest=int1d(Th, levelset=distVraieTest)(dist2);
+			
+			if(debugPlot==1){
+				rayon=sqrt(Aire/pi); centreX=Cx/Aire; centreY=Cy/Aire;
+				cercleAp=cercle(rayon, centreX, centreY);
+				plot(cercleAp, fill=1, value=1, viso=visoV, WindowIndex=3, wait=1, cmm="Cercle approximateur it "+itB);
+				Diff=(distVraieTest>0)-(cercleAp>0);
+				plot(Diff, fill=1, value=1, viso=visoV2, WindowIndex=4,wait=1, cmm="Difference it "+itB);	
+			}
+			
+			smoothingDistVraie;
+			vhTest=-vhTest;
+	
+			if(debugPlot==1){ plot(vhTest, fill=1, viso=visoV,WindowIndex=5, wait=1);}
+		
+			cout<<endl;
+			cout<<"iteration "<<itB<<"; contrainte="<<contrainte<<"; contrainteTest="<<contrainteTest<<endl;
+		
+		if (contrainteTest<=contrainte){
+			cout<<"iteration accepted"<<endl;
+			acc=1;
+			distVraie=distVraieTest;
+			contrainte=contrainteTest;
+			vh=vhTest;
+			[nx1, ny1]=[vh*nx, vh*ny];
+								
+			if (step<0.05) coef=min(coef*1.5,coefini);
+		}
+	
+		else{
+			cout<<"iteration refused"<<endl;
+			acc=0;
+			coef=coef/2.;
+		}
+		
+		if(debugSavesol==1){
+			
+			plot(distVraie, viso=visoV, WindowIndex=1, wait=1, cmm="distVraie, it "+itB);	
+					
+			if(itB<10){
+				savesol(path+"/phi00"+itB+".sol",Th,distVraie);
+			}
+			if(itB>9 && itB<100){
+				savesol(path+"/phi0"+itB+".sol",Th,distVraie);
+			}
+			if(itB>99){
+				savesol(path+"/phi"+itB+".sol",Th,distVraie);
+			}
+							
+		} 
+		
+		{svol = path+"/valeurs.data";
+			ofstream f(svol,append);
+			f<<itB<<" "<<acc<<" "<<contrainte<<" "<<coef<<endl;}		
+	}
+	
+	exec("python /Users/mathilde/These/Projets/CodesPython/pltvariables.py -nomVar iteration acc contrainte coef -fichier "+path+"/valeurs.data -stockage "+path);
+	
+	
+	exec("rm so.res");
+	exec("rm templvs.chi.sol");
+	exec("rm templvs.mesh");
+	exec("rm templvs.mesh.gmsh");
+	exec("rm templvs.sol");	
