@@ -22,15 +22,15 @@ int ini=2; // 1:ellipse; 2:trous; 3:lectureSol
 /* Multiplicateurs Lagrange et gestion contrainte*/
 real lCompl=1.;
 
-real lVol=0; real lagVolStep=20;
+real lVol=0; real lagVolStep=15;
 real volCible=0.05; //le volume vible sera de 1/4 de la boite : a multiplier avec le volume de la boite	
 volCible=volCible*(xM1-xM0)*(yM1-yM0)*(nbCouches*dh);
 
-real lCercle=0.; real lagCercleStep=10;
+real lCercle=0.; real lagCercleStep=20;
 
 int choixDescente=1; //0 : test additif objTest-obj<tol; 1 : test multiplicatif objTest<obj(tol+1)
 
-if choixDescente==1){path=path+"/tolFoisLCompl"+lCompl+"lagVStep"+lagVolStep+"lagCStep"+lagCercleStep;}
+if (choixDescente==1){path=path+"/tolFoisLCompl"+lCompl+"lagVStep"+lagVolStep+"lagCStep"+lagCercleStep;}
 if(choixDescente==0){path=path+"/tolPlusLCompl"+lCompl+"lagVStep"+lagVolStep+"lagCStep"+lagCercleStep;}
 
 		exec("mkdir "+path);
@@ -43,7 +43,7 @@ mu=8; lambda=1;//coefs de Lamé
 		
 
 /* Coefficients d'optimisation */
-int NB=100;
+int NB=200;
 real coef=10; real coefini=10;
 
 func real toleranceF (int it){
@@ -434,7 +434,7 @@ int[int] fforder=[1];
 					cout<<endl;
 			
 				if(choixDescente==1){
-					if (objFTest<=objF(1+tolerance)){
+					if (objFTest<=objF*(1+tolerance)){
 						cout<<"iteration accepted"<<endl;
 						acc=1;
 						distVraie=distVraieTest;
@@ -473,7 +473,7 @@ int[int] fforder=[1];
 					}
 				}
 				if(choixDescente==0){
-					if (objFTest<=objF(1+tolerance)){
+					if (objFTest-objF<=tolerance){
 						cout<<"iteration accepted"<<endl;
 						acc=1;
 						distVraie=distVraieTest;

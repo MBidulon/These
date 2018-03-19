@@ -58,7 +58,7 @@ int numLabel=2;
 //	distVraie=deuxPleins1Vide();
 //	distVraie=deuxPleinsTroisVides();
 //	distVraie=deuxVidesTroisPleins();
-//	distVraie=initialisationSymBridge (2,2);
+	distVraie=initialisationSymBridge (2,2);
 //	distVraie=initialisationSymBridge (3,4);
 
 		distVraieTest=distVraie;

@@ -1,0 +1,53 @@
+load "medit" //pour freefem
+
+string cas="quelquesPleins";
+int nbIt=25;
+int w=1;
+
+
+
+
+string path="/Users/mathilde/These/Projets/FormeSection/SectionCercle/CercleCompConnexe/2D/ContrainteVolume/AccepteChangementTopo/SansPousserBord/ResultatsTests/"+cas;
+
+
+int n=100;	
+real xM0=0.; real xM1=1.; real yM0=0; real yM1=1.;
+int numLabel=2;
+int[int] lab=[numLabel,numLabel,numLabel,numLabel];
+mesh Th=square(n,n,[xM0+(xM1-xM0)*x, yM0+(yM1-yM0)*y], label=lab);
+
+
+
+fespace Vh0(Th,P0); fespace Vh1(Th,P1);
+Vh1 distVraie;	
+Vh0 meshSizes=hTriangle;		
+real meshsiz=meshSizes[].max; //maximal length of edges
+int np=Th.nv; int nt=Th.nt;
+		
+
+
+/* ----------------------------------- */
+string dummy; 
+real[int] loadsol(np);
+string fichier;
+real[int] visoV=[-50,-0.0001,0.0001,50]; 
+
+for (int it=1; it<=nbIt; it=it+1){
+
+		if(it<10){fichier=path+"/phi00"+it+".sol";}
+		if(it>9 && it<100){fichier=path+"/phi0"+it+".sol";}
+		if(it>99){fichier=path+"/phi"+it+".sol";}
+		
+		{ifstream f(fichier);
+			cout<<"fichier="<<fichier<<endl;
+			for(int i=0; i<8; i++) {
+				f>>dummy;
+			}
+			for(int i=0; i<np; i++) {
+				f>>loadsol[i];
+			}
+			distVraie[] = loadsol;}	
+			
+		plot(Th, distVraie, fill=1, value=1, viso=visoV, wait=w, cmm="it "+it);		
+		//plot(Th, distVraie, fill=1, value=1, wait=w, cmm="it "+it);		  	
+}
