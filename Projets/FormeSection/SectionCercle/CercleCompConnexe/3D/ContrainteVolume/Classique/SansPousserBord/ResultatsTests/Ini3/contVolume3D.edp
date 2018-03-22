@@ -1,0 +1,536 @@
+string pathAdvect ="/Users/mathilde/bin/advect";
+string pathMshdist="/Users/mathilde/bin/mshdist";
+string pathCompConn="/Users/mathilde/These/Projets/CodesPython/compCon.py";
+string pathPltVariables="/Users/mathilde/These/Projets/CodesPython/pltvariables.py";
+string pathStockage="/Users/mathilde/These/Projets/FormeSection/SectionCercle/CercleCompConnexe/3D/ContrainteVolume/Classique/SansPousserBord/ResultatsTests";
+
+		
+
+/* Maillage */
+int n=20; int nbCouches=25; real dh=0.1;
+real xM0=0.; real xM1=1.; real yM0=0; real yM1=1.; real zM0=0.;
+
+
+/* Initialisation choisie */
+int ini=2; // 1:ellipse; 2:trous; 3:lectureSol
+		real pAxe,gAxe,centreX,centreY; 
+	pAxe=0.1; gAxe=0.5; centreX=0.5; centreY=0.5;
+	int kx=4, ky=4, kz=4;
+	int coefSolide=-1;
+	string nomFichier="/Users/mathilde/Desktop/These/Projets/SectionCercle/AvecElasticite/Code3D/180219/Stockage/LVol10LCompl1LCercle5Ini2/041LvlSet.sol";
+
+
+real lVol=0;
+real stepLagVol=10.;
+real tolVol=0.1;
+
+string path=pathStockage+"/Ini3";
+		exec("mkdir "+path);
+		exec("cp contVolume3D.edp "+path+"/contVolume3D.edp");
+		
+/* Solide ou vide */
+int compChoix=0; //0 : composantes solides, 1 : composantes vides
+
+/* Derivee Dirac ou non */
+int derDirac=0;
+
+/* Parametres optim */
+	real coefAlpha=1.;
+	real eps1=0.0001; // pour la densite, materiau mou
+
+	int NB=150;
+	real coef=10; real coefini=10;
+	
+	func real toleranceF (int it){
+		real tol=10;
+		if(tol!=0){
+			if ( it == 20 ) tol = 1;
+			if ( it == 40 ) tol = 0.5;
+			if ( it == 60) tol = 0.125;	
+			if ( it == 80 ) tol = 0.05;
+		}
+		return(tol);	
+	}
+
+
+
+verbosity=0;
+int debugPlot=0;
+int debug=1;
+	
+	
+/* -------------------------------------------------------------------------------------------------------- */
+load "msh3"
+load "tetgen"
+load "medit" //pour freefem
+load "iovtk" //pour paraview
+load "distance"
+
+		int[int] fforder=[1];
+		real[int] visoV=[-100,-0.1,-0.001,0,0.001,0.1,100];
+		
+	/* -------------------------- fonctions annexes -------------------------- */
+
+	/* MAILLAGE */
+		macro maillageCercles3D(n,Th,Thsq,xM0,xM1,yM0,yM1,zM0,dh,nbCouches){	
+				Thsq=square(n,n,[xM0+(xM1-xM0)*x, yM0+(yM1-yM0)*y]);
+				for (int itMaillage=0; itMaillage<nbCouches; itMaillage=itMaillage+1){
+					Thaux1=buildlayers(Thsq, 1, zbound=[zM0+dh*itMaillage,zM0+dh*(itMaillage+1)]);
+					Thaux2 = tetg(Thaux1,switch="paAAQY");
+					Th=Th+Thaux2;
+				}
+				
+				func  newlabel = ( z < 100 ) ? 0 : label;
+				Th = change(Th,flabel=newlabel);
+				
+				func  newlabel2 = (x < 1e-3) ? 2 : label;
+				func newlabel21 = (x > 0.999) ? 3 : label;
+				func newlabel22 = (y < 1e-3) ? 4 : label;
+				func newlabel23 = (y > 0.999) ? 5 : label;
+				
+				Th = change(Th,flabel=newlabel2);
+				Th = change(Th,flabel=newlabel21);
+				Th = change(Th,flabel=newlabel22);
+				Th = change(Th,flabel=newlabel23);
+				
+				for (int itLab=0; itLab<=nbCouches; ++itLab){
+					real lab, bas, haut;
+					bas=itLab*dh-0.0001;
+					haut=itLab*dh+0.0001;
+					func newlabel3 = ((bas<z) && (haut>z)) ? itLab+6 : label;
+					Th = change(Th,flabel=newlabel3);
+				}
+				
+				real zMax=zM0+nbCouches*dh-1e-3;
+				real xMilieu=(xM0+xM1)/2.;
+				real yMilieu=(yM0+yM1)/2.;
+				func newlabelHaut = ((z>zMax) && (x<xMilieu+0.05) && (x>xMilieu-0.05) && (y<yMilieu+0.05) && (y>yMilieu-0.05))? nbCouches+7 : label;
+				
+				Th = change(Th,flabel=newlabelHaut);
+		}//EOM
+
+	/* INITIALISATIONS */
+			func real ellipse(real gAxe, real pAxe, real centrex, real centrey){
+				real a;
+				a=((x-centrex)/gAxe)^2.+((y-centrey)/pAxe)^2.-1;
+				return(a);
+			}
+			
+				
+				
+			func real initialisationSymCantilever (int kx, int ky, int kz, real xfunc0, real xfunc1, real yfunc0, real yfunc1, real zfunc0, real zfunc1){
+				real a;	
+				a=-0.1-cos(kx*pi*(x-xfunc0)/(xfunc1-xfunc0))*cos(ky*pi*(y-yfunc0+0.5)/(yfunc1-yfunc0))*cos(kz*pi*(z-zfunc0)/(zfunc1-zfunc0));
+				return(a);
+			}
+	
+		
+		
+		/* -------------------------- début du calcul -------------------------- */
+		
+
+			/* ----- MAILLAGE ----- */
+				mesh3 Th, Thaux1, Thaux2; mesh Thsq,ThsqAux;
+				maillageCercles3D(n,Th,Thsq,xM0,xM1,yM0,yM1,zM0,dh,nbCouches);	
+				savemesh(Th,"templvs.mesh");
+				exec("cat templvs.mesh | sed 's/MeshVersionFormatted 2/MeshVersionFormatted 0/' > toto.mesh");
+				exec("mv toto.mesh templvs.mesh"); 		
+				
+				/* pour le 3D */	
+				fespace Vh0(Th,P0); fespace Vh1(Th,P1); fespace Vh2(Th,P2);
+				fespace Vh02(Th,[P0,P0,P0]); fespace Vh12(Th,[P1,P1,P1]);
+				Vh1 aux1; Vh0 aux0; Vh12 [aux12x, aux12y, aux12z]; Vh02 [aux02x, aux02y, aux02z];		
+				
+				/* pour le 2D */	
+				fespace Vh2d0(Thsq,P0); fespace Vh2d1(Thsq,P1);
+				fespace Vh2d02(Thsq,[P0,P0]); fespace Vh2d12(Thsq,[P1,P1]);
+				Vh2d1 aux2d1; Vh2d0 aux2d0; Vh2d12 [aux2d12x, aux2d12y]; Vh2d02 [aux2d02x, aux2d02y];
+				
+				/* A propos du maillage */		
+				Vh0 meshSizes=hTriangle;		
+				real meshsiz=meshSizes[].max; //maximal length of edges
+				int np=Th.nv; int nt=Th.nt; int np2d=Thsq.nv;
+				real alpha=meshsiz;
+				
+				/* Preparation de la lecture des fichiers... */
+				real[int] loadsol(np); real[int] loadsol2d(np2d);
+				string s;
+		
+			
+			/* ----- INITIALISATION ----- */
+				Vh1 distVraie,distVraieTest,auxDist,redist;
+				real zM1=zM0+nbCouches*dh;
+				if(ini==1) distVraie=ellipse(gAxe, pAxe, centreX,centreY);
+				if(ini==2) distVraie=coefSolide*initialisationSymCantilever (kx,ky,kz,xM0,xM1,yM0,yM1,zM0,zM1);
+				if(ini==3) {
+					{ifstream f(nomFichier);
+					 for(int i=0; i<8; i++) {
+					    f>>s;
+					  }
+					  for(int i=0; i<np; i++) {
+					    f>>loadsol[i];
+					  }
+					  distVraieTest[] = loadsol;}
+				}
+		
+	
+				distVraieTest=distVraie;
+				func distaux = (distVraieTest(x,y,z)<=0)*0+(distVraieTest(x,y,z)>0)*distVraieTest(x,y,z);
+				problem zeroOnMeshB(auxDist,aux1)= int3d(Th)(auxDist*aux1)-int3d(Th)(distVraieTest*aux1)+on(2,auxDist=distaux)+on(3,auxDist=distaux)+on(4,auxDist=distaux)+on(5,auxDist=distaux);
+				zeroOnMeshB;
+				distVraieTest=auxDist+0.0001;
+				distance(Th,distVraieTest,redist[], distmax=10);
+				distVraieTest[]=redist[];
+				distVraie=distVraieTest;
+				savesol("ini.sol",Th,distVraie);
+
+
+		/* ----- CALCULS VALEURS INITIALES ----- */
+		
+				/* densité */
+					Vh1 X;
+					X=eps1+(1-eps1)*(distVraie<0);
+				
+				
+				/* Volume */
+					real volCont, vol, vCible;
+					Vh1 vhVol, vhVolTest, bvelVol;
+					
+					vCible=int3d(Th)(X);
+					tolVol=tolVol*vCible;
+					vol=int3d(Th)(X);
+					volCont=(vol-vCible)^2-tolVol;
+					
+					varf calVelBilVol(vhVol,aux1)=int3d(Th)((coefAlpha*alpha)^2.*( dx(vhVol)*dx(aux1)+dy(vhVol)*dy(aux1))+ vhVol*aux1);
+					matrix AvelVol=calVelBilVol(Vh1,Vh1);
+					varf calVelLinVol(unused,aux1)=int2d(Th,levelset=distVraieTest)(2*(vol-vCible)*aux1);
+					
+					bvelVol[]=calVelLinVol(0,Vh1);
+					vhVol[]=AvelVol^-1*bvelVol[];		
+					vhVol=-vhVol;
+				
+				/* Normale et H liées à la forme */
+					Vh1 nx, ny, nz, norme; Vh12 [nx1, ny1, nz1],[zx,zy,zz];
+					Vh0 H, nabla; Vh02 [nx0,ny0,nz0];
+					
+					varf reconsN([zx,zy,zz],[aux12x,aux12y, aux12z]) = int3d(Th)(zx*aux12x+zy*aux12y+zz*aux12z);
+					matrix Anormal=reconsN(Vh12,Vh12);		
+					varf reconsNrhs([zx,zy,zz],[aux12x,aux12y, aux12z]) = int3d(Th)(nx0*aux12x+ny0*aux12y+nz0*aux12z);
+					
+					nabla=(dx(distVraie))^2+(dy(distVraie))^2+(dz(distVraie))^2;
+					[nx0,ny0,nz0]=[dx(distVraie)/(sqrt(nabla+eps1^2)),dy(distVraie)/(sqrt(nabla+eps1^2)),dz(distVraie)/(sqrt(nabla+eps1^2))];
+					real[int] bNormal=reconsNrhs(0,Vh12);	
+					zx[]=Anormal^-1*bNormal;		 
+					norme = sqrt(zx^2+zy^2+zz^2+eps1^2);
+					nx=zx/norme; ny=zy/norme; nz=zz/norme;						
+					H=dx(nx)+dy(ny)+dz(nz);
+			
+				
+				/* Cercles */
+					
+					/* pour une composante connexe */
+						Vh2d1 vhC2d,C; Vh2d0 grhC;
+	
+						problem smoothingCercle2D (vhC2d,aux2d1)=int2d(Thsq)( (coefAlpha*alpha)^2.*( dx(vhC2d)*dx(aux2d1)+dy(vhC2d)*dy(aux2d1)) + vhC2d*aux2d1) - 										int1d(Thsq,levelset=C)(grhC*aux2d1);
+							
+	
+						macro computeVhCercleAux(Thsq,C,nxh,nyh,Hh,grhC,vhC2d,contrainteC, intDirac, coeffZ){
+							contrainteC=0; vhC2d=0; grhC=0;
+							
+							real Aire,Cx,Cy,A1,A2,A3;
+							Vh2d1 Dx,Dy,DE,dist,dist2;
+							Aire=0; Cx=0; Cy=0; A1=0; A2=0; A3=0;
+							Dx=0; Dy=0; DE=0; dist=0; dist2=0;
+							
+							Vh2d1 Xcompi=eps1+(1-eps1)*(C<0);
+								
+							Aire=int2d(Thsq)(Xcompi);	
+							Cx=int2d(Thsq)(x*Xcompi);
+							Cy=int2d(Thsq)(y*Xcompi);
+								
+							Dx=x-Cx/(Aire+eps1);
+							Dy=y-Cy/(Aire+eps1);
+							DE=sqrt(Dx^2.+Dy^2.);
+							dist=DE-sqrt(Aire/pi);
+							dist2=dist*dist;
+								
+							A1=int1d(Thsq,levelset=C)(2*dist*Dx/(Aire*DE+eps1));
+							A2=int1d(Thsq,levelset=C)(2*dist*Dy/(Aire*DE+eps1));
+							A3=int1d(Thsq,levelset=C)(dist/sqrt(Aire*pi+eps1));
+							
+							if(derDirac==1){grhC=-A1*Dx-A2*Dy-A3+2*dist*dx(dist)*nxh+2*dist*dy(dist)*nyh+Hh*dist2-coeffZ/intDirac*nzh*dist2;}
+							if(derDirac==0){grhC=-A1*Dx-A2*Dy-A3+2*dist*dx(dist)*nxh+2*dist*dy(dist)*nyh+Hh*dist2;}
+	
+							smoothingCercle2D;
+							vhC2d=-vhC2d;
+							
+							if(debugPlot==1){
+								plot(dist, viso=visoV, fill=1, value=1, WindowIndex=5, cmm="dist");
+								plot(grhC, fill=1, value=1, WindowIndex=7, cmm="grc");	
+								plot(dist,[nxh,nyh],viso=visoV,fill=1,value=1, WindowIndex=8,cmm="n");
+								plot(vhC2d, fill=1, value=1, WindowIndex=6, cmm="vhC2d");
+							}
+							
+							contrainteC=int1d(Thsq,levelset=C)(dist2);
+						}//EOM
+		
+		
+					/* pour une tranche en hauteur z=h */
+					int[int] nbCompInteret(nbCouches); int[int] nbCompInteretOld(nbCouches);
+							
+					macro compConnexesH(Th,Thsq,distVraie,nx,ny,nz,H,itNb,dh,contrainteH,vhH,nbCompInteret){
+						contrainteH=0; vhH=0;
+						
+						real contrainteC=0;
+						
+						int nbCompInt, nbCompExt;
+						
+						real intDirac=int3d(Th)(exp(-100*(z-itNb*dh)^2.));
+						Vh1 Dirac=exp(-100*(z-itNb*dh)^2.)/intDirac;
+						real coeffZ=200;
+								
+						Vh2d1 distVraieH,nxh,nyh,nzh,Hh;
+						distVraieH=distVraie(x,y,itNb*dh); nxh=nx(x,y,itNb*dh); nyh=ny(x,y,itNb*dh); nzh=nz(x,y,itNb*dh); Hh=H(x,y,itNb*dh);
+						
+						if(debugPlot==1){plot(distVraieH, fill=1, value=1, WindowIndex=3);}
+							
+						savemesh(Thsq, "maillage.mesh");
+						savesol("tranche.sol", Thsq, distVraieH);
+						exec("python "+pathCompConn+" -mesh maillage.mesh -lvlSet tranche.sol");
+						ThsqAux=readmesh("Resmaillage.mesh");
+						savemesh(ThsqAux,"Resmaillage.mesh");
+						exec("cat Resmaillage.mesh | sed 's/MeshVersionFormatted 0/MeshVersionFormatted 1/' > toto.mesh");
+						exec("mv toto.mesh Resmaillage.mesh");
+								
+						{ifstream f("nbComp");
+							f>>nbCompInt;
+							f>>nbCompExt;}	
+					
+						if(debug==1){
+							cout<<"nb comp int="<<nbCompInt<<"; nb comp ext="<<nbCompExt<<endl;
+							Vh2d0 reg=region;
+							plot(Thsq,reg, fill=1, value=1, WindowIndex=2, cmm="couche "+itNb, wait=1);
+						}
+					
+						if(compChoix==0){nbCompInteret[itNb]=nbCompInt;}
+						if(compChoix==1){nbCompInteret[itNb]=nbCompExt;}
+					
+						
+						for(int it=compChoix; it<2*nbCompInteret[itNb]; it=it+2){
+							{ofstream f("Resmaillage.mshdist");
+								f<<endl;
+								f<<"InteriorDomains"<<endl;
+								f<<"1"<<endl;
+								f<<endl;
+								f<<endl;
+								f<<string(it);}
+						
+							exec(pathMshdist+" Resmaillage.mesh -dom -ncpu 2");				
+							{ifstream f("Resmaillage.sol");
+								for(int i=0; i<8; i++) {
+								 f>>s;
+								}
+								for(int i=0; i<np2d; i++) {
+									f>>loadsol2d[i];
+								}
+							C[] = loadsol2d;}	
+										
+							if(debug==1){plot(C,viso=visoV,fill=1,value=1,WindowIndex=it);}
+							exec("rm ./Resmaillage.mshdist");
+							
+							computeVhCercleAux(Thsq,C,nxh,nyh,Hh,grhC,vhC2d,contrainteC,intDirac,coeffZ)
+							contrainteH=contrainteH+dh*contrainteC;
+							if(debugPlot==1){plot(vhC2d, fill=1, value=1, viso=visoV, WindowIndex=4, cmm="couche"+itNb,wait=1);}
+							vhCAux=Dirac*vhC2d;
+							vhH=vhH+dh*vhCAux;
+						}
+					}//EOM
+
+
+				/* cercles */
+				Vh1 vhCercle;
+				real contrainteCercle;
+				
+				int itB=0;
+				
+				macro calculCercles(itB,Th,Thsq,distVraie,nx,ny,nz,H,nbCouches,contrainteCercle,vhCercle,nbCompInteret){
+						contrainteCercle=0; vhCercle=0;
+						real contrainteH=0; Vh1 vhH, vhCAux;
+						for (int it=0; it<nbCouches; it=it+1){
+							compConnexesH(Th,Thsq,distVraie,nx,ny,nz,H,it,dh,contrainteH,vhH,nbCompInteret);
+							contrainteCercle=contrainteCercle+contrainteH;
+							vhCercle=vhCercle+vhH;
+						}
+				}//EOM			
+				
+				calculCercles(itB,Th,Thsq,distVraie,nx,ny,nz,H,nbCouches,contrainteCercle,vhCercle,nbCompInteret);
+
+	
+				/* objective function */
+				real objF, objFTest;
+					objF=contrainteCercle+lVol*volCont;
+					cout<<endl;
+					cout<<"objFunction="<<objF<<endl;
+					cout<<endl;
+			
+				Vh1 vh,vhTest;
+				vh=vhCercle+lVol*vhVol;		
+				[nx1, ny1, nz1]=[vh*nx, vh*ny, vh*nz];			
+				cout<<endl;
+				cout<<"fin de l'initialisation, debut de la boucle"<<endl;
+
+
+
+			/* ----- BOUCLE ----- */
+
+				int acc=1; 
+				real step, maxV;
+				real tolerance;
+				
+				string svol;
+				{svol = path+"/valeurs.data";
+					 ofstream f(svol);
+					 f<<itB<<" "<<acc<<" "<<contrainteCercle<<" "<<volCont<<" "<<lVol<<" "<<coef<<endl;}
+	
+	
+				for (itB=1;itB< NB;itB=itB+1){
+					cout<<"iteration "<<itB<<endl;
+					
+					tolerance=toleranceF(itB);
+		
+					distVraieTest=distVraie;
+					objFTest=0;
+					vhTest=0;
+				
+					maxV = max(vh[].max,-vh[].min);
+					step=coef*meshsiz/(maxV+eps1);
+		
+					savesol("templvs.chi.sol",Th,distVraieTest);
+					savesol("templvs.sol",Th,[nx1,ny1,nz1]);
+					cout<<"advection"<<endl;
+					exec(pathAdvect+" templvs.mesh -dt " + step + " -s templvs.sol -c templvs.chi.sol -o templvs.chi.sol >> so.res ");
+					cout<<"fin advection"<<endl;
+		
+					{ifstream f("templvs.chi.sol");
+					 for(int i=0; i<8; i++) {
+					    f>>s;
+					  }
+					  for(int i=0; i<np; i++) {
+					    f>>loadsol[i];
+					  }
+					  distVraieTest[] = loadsol;}
+		  
+					func distaux = (distVraieTest(x,y,z)<=0)*0+(distVraieTest(x,y,z)>0)*distVraieTest(x,y,z);	
+					zeroOnMeshB;
+					distVraieTest=auxDist+0.0001;
+					distance(Th,distVraieTest,redist[], distmax=10);
+					distVraieTest[]=redist[];
+				
+					X=eps1+(1-eps1)*(distVraieTest<0);
+					
+					vol=int3d(Th)(X);
+					volCont=(vol-vCible)^2.-tolVol;		
+					
+					bvelVol[]=calVelLinVol(0,Vh1);
+					vhVol[]=AvelVol^-1*bvelVol[];		
+					vhVol=-vhVol;
+		
+					nabla=(dx(distVraieTest))^2+(dy(distVraieTest))^2+(dz(distVraieTest))^2;
+					[nx0,ny0,nz0]=[dx(distVraieTest)/(sqrt(nabla+eps1^2)),dy(distVraieTest)/(sqrt(nabla+eps1^2)),dz(distVraieTest)/(sqrt(nabla+eps1^2))];
+					
+					real[int] bNormal=reconsNrhs(0,Vh12);	
+					zx[]=Anormal^-1*bNormal;
+									 
+					norme = sqrt(zx^2+zy^2+zz^2+eps1^2);
+					nx=zx/norme; ny=zy/norme; nz=zz/norme;						
+					H=dx(nx)+dy(ny)+dz(nz);
+
+					calculCercles(itB,Th,Thsq,distVraieTest,nx,ny,nz,H,nbCouches,contrainteCercle,vhCercle,nbCompInteret);
+					
+					objFTest=contrainteCercle+lVol*volCont;
+					
+					vhTest=vhCercle;
+
+
+					cout<<endl;
+					cout<<endl;
+					cout<<endl;
+					cout<<endl;
+					cout<<endl;
+					cout<<"BOUCLE D'OPTIMISATION, RESULTATS :"<<endl;
+					cout<<"iteration "<<itB<<"; objFunction="<<objF<<"; objFunctionTest="<<objFTest<<endl;
+					cout<<"             "<<"; contrainte="<<contrainteCercle<<endl;
+					cout<<"             "<<"; volCont="<<volCont<<endl;
+					cout<<endl;
+		
+					if (objFTest<=objF*(1+tolerance)){
+						cout<<"iteration accepted"<<endl;
+						cout<<"FIN DES INFOS IMPORTANTES"<<endl;
+						cout<<endl;
+						cout<<endl;
+						cout<<endl;
+						cout<<endl;
+						cout<<endl;
+						acc=1;
+						distVraie=distVraieTest;
+						
+						if(volCont<=0){lVol=0;}
+						if(volCont>0){lVol=lVol+stepLagVol*volCont;}
+						
+						objF=contrainteCercle+lVol*volCont;
+						vh=vhCercle+lVol*vhVol;
+						[nx1, ny1, nz1]=[vh*nx, vh*ny, vh*nz];
+										
+						if (step<0.05) coef=min(coef*1.5,coefini);
+					}
+					else{
+						cout<<"iteration refused"<<endl;
+						cout<<"FIN DES INFOS IMPORTANTES"<<endl;
+						cout<<endl;
+						cout<<endl;
+						cout<<endl;
+						cout<<endl;
+						cout<<endl;
+						acc=0;
+						
+						coef=coef/2.;
+					}
+					
+					//if(itB%10==1){			
+					if(itB<10){
+						savesol(path+"/00"+itB+"LvlSet.sol",Th,distVraie);
+						savevtk(path+"/it00"+itB+".vtk", Th, distVraie, dataname="distVraie", order=fforder);
+					}
+					if(itB>9 && itB<100){
+						savesol(path+"/0"+itB+"LvlSet.sol",Th,distVraie);
+						savevtk(path+"/it0"+itB+".vtk", Th, distVraie, dataname="distVraie",order=fforder);
+					}
+					if(itB>99){
+						savesol(path+"/"+itB+"LvlSet.sol",Th,distVraie);
+						savevtk(path+"/it"+itB+".vtk", Th, distVraie, dataname="distVraie", order=fforder);
+					}
+					//}
+			
+					{svol = path+"/valeurs.data";
+						 ofstream f(svol,append);
+						 f<<itB<<" "<<acc<<" "<<contrainteCercle<<" "<<volCont<<" "<<lVol<<" "<<coef<<endl;}
+				
+			} 	
+			
+			
+			exec("python "+pathPltVariables+" -nomVar iteration acc contrainteCercle contrainteVolume coef -fichier "+path+"/valeurs.data -stockage "+path);
+	
+	
+	exec("rm so.res");
+	exec("rm templvs.chi.sol");
+	exec("rm templvs.mesh");
+	exec("rm templvs.mesh.gmsh");
+	exec("rm templvs.sol");		
+	exec("rm maillage.mesh");
+	exec("rm maillage.mesh.gmsh");	
+	exec("rm Resmaillage.mesh");
+	exec("rm Resmaillage.sol");
+	exec("rm Resmaillage.mesh.gmsh");
+	exec("rm ini.sol");
+	exec("rm nbComp");
+					
