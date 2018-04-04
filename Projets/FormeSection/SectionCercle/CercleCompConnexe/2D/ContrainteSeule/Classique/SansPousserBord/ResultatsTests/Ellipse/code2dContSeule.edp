@@ -5,7 +5,7 @@ include "/Users/mathilde/These/Projets/FormeSection/SectionCercle/CodesUtiles/2D
 
 string pathAdvect="/Users/mathilde/bin/advect";
 string pathMshdist="/Users/mathilde/bin/mshdist";
-string pathStockage="/Users/mathilde/These/Projets/FormeSection/SectionCercle/CercleCompConnexe/2D/ContrainteSeule/SansPousserBord/ResultatsTests";
+string pathStockage="/Users/mathilde/These/Projets/FormeSection/SectionCercle/CercleCompConnexe/2D/ContrainteSeule/Classique/SansPousserBord/ResultatsTests";
 
 verbosity=0;
 int debugPlot=1;
@@ -17,11 +17,12 @@ real coefAlpha=1.;
 int compChoix=0; //0 : composantes solides, 1 : composantes vides
 
 /* choix optimisation */
-int NB=10;
+int NB=40;
 real coef,coefini;
 coef=coefini=50.;
+real tol=0.5;
 
-	string path=pathStockage+"/Ellipse";
+	string path=pathStockage+"/ellipse";
 	exec("mkdir "+path);
 	exec("cp code2dContSeule.edp "+path+"/code2dContSeule.edp");
 	real[int] visoV=[-50,-0.0001,0.0001,50]; 
@@ -266,7 +267,7 @@ int numLabel=2;
 
 		cout<<"iteration "<<itB<<"; contrainte="<<contrainte<<"; contrainteTest="<<contrainteTest<<endl;
 		
-		if (contrainteTest<=contrainte || itB<10){
+		if (contrainteTest<=contrainte*(1+tol)){
 				cout<<"iteration accepted"<<endl;
 				acc=1;
 				distVraie=distVraieTest;
@@ -313,6 +314,7 @@ int numLabel=2;
 	exec("rm maillage.mesh");
 	exec("rm maillage.mesh.gmsh");	
 	exec("rm Resmaillage.mesh");
+	exec("rm Resmaillage.sol");
 	exec("rm Resmaillage.mesh.gmsh");
 	exec("rm ini.sol");
 	exec("rm nbComp");

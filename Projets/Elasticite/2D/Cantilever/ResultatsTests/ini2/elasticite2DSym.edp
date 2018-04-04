@@ -1,0 +1,388 @@
+string pathAdvect ="/Users/mathilde/bin/advect";
+string pathMshdist="/Users/mathilde/bin/mshdist";
+string pathPltVariables="/Users/mathilde/These/Projets/CodesPython/pltvariables.py";
+string pathStockage="/Users/mathilde/These/Projets/Elasticite/2D/Cantilever/ResultatsTests";
+
+string path=pathStockage+"/ini2";
+		exec("mkdir "+path);
+		exec("cp elasticite2DSym.edp "+path+"/elasticite2DSym.edp");
+
+/* Maillage */
+int n=3;
+real xM0=-1.; real xM1=1.; real yM0=-0.5; real yM1=0.5; real yMforce1=-0.05; real yMforce2=0.05;
+int[int] l1=[1,1,1,2] ; int[int] l2=[1,3,1,2] ; int[int] l3=[1,1,1,2] ;
+
+/* Initialisation choisie */
+int ini=2; // 1:ellipse; 2:trous; 3:lectureSol
+		real pAxe,gAxe,centreX,centreY; 
+	pAxe=0.1; gAxe=0.5; centreX=0.5; centreY=0.5;
+	int kx=4, ky=3, kz=1;
+	int coefSolide=1;
+	string nomFichier="/Users/mathilde/Desktop/These/Projets/SectionCercle/AvecElasticite/Code3D/180219/Stockage/LVol10LCompl1LCercle5Ini2/041LvlSet.sol";
+
+
+
+/* Elasticite */
+	real  g1=0; real g2=-5;
+	real mu=8; real lambda=1; 
+	
+	
+	real Lag;
+	real stepLag=0.5;
+	real volCible=0.01;
+
+/* Parametres optim */
+	real coefAlpha=1.;
+	real eps1=0.0001; // pour la densite, materiau mou
+
+	int NB=120;
+	real coef=10; real coefini=10;
+	
+	func real toleranceF (int it){
+		real tol=0.1;
+		if(tol!=0){
+			if ( it == 30 ) tol = 0.05;
+			if ( it == 60 ) tol = 0.01;
+			if ( it == 90 ) tol = 0.0;	
+		}
+		return(tol);	
+	}
+
+
+verbosity=0;
+int debugPlot=0;
+int debug=1;
+
+
+
+/* -------------------------------------------------------------------------------------------------------- */
+load "msh3"
+load "tetgen"
+load "medit" //pour freefem
+load "iovtk" //pour paraview
+load "distance"
+
+		int[int] fforder=[1];
+		real[int] visoV=[-100,-0.1,-0.001,0,0.001,0.1,100];
+		
+	/* -------------------------- fonctions annexes -------------------------- */
+
+	/* MAILLAGE */
+		macro maillage(n,Th,xmesh0,xmesh1,ymesh0,ymesh3,ymesh1,ymesh2,l1,l2,l3){	
+				mesh Th1=square(40*n,9*n,[xmesh0+(xmesh1-xmesh0)*x,ymesh0+(ymesh1-ymesh0)*y],label=l1,flags=1);
+				mesh Th2=square(40*n,2*n,[xmesh0+(xmesh1-xmesh0)*x,ymesh1+(ymesh2-ymesh1)*y],label=l2,flags=1);
+				mesh Th3=square(40*n,9*n,[xmesh0+(xmesh1-xmesh0)*x,ymesh2+(ymesh3-ymesh2)*y],label=l3,flags=1);
+				Th = Th1+Th2+Th3;
+		}//EOM
+
+	/* INITIALISATIONS */
+			func real ellipse(real gAxe, real pAxe, real centrex, real centrey){
+				real a;
+				a=((x-centrex)/gAxe)^2.+((y-centrey)/pAxe)^2.-1;
+				return(a);
+			}
+			
+				
+				
+			func real initialisationSymCantilever (int kx, int ky, int kz, real xfunc0, real xfunc1, real yfunc0, real yfunc1){
+				real a;	
+				a=-0.1+sin(pi*kx*x)*sin(pi*ky*(y-0.5));
+				return(a);
+			}
+
+	
+	/* -------------------------- début du calcul -------------------------- */
+		
+
+			/* ----- MAILLAGE ----- */
+				mesh Th;
+				maillage(n,Th,xM0,xM1,yM0,yM1,yMforce1,yMforce2,l1,l2,l3)
+				savemesh(Th,"templvs.mesh");
+				exec("cat templvs.mesh | sed 's/MeshVersionFormatted 0/MeshVersionFormatted 1/' > toto.mesh");
+				exec("mv toto.mesh templvs.mesh"); 		
+					
+				fespace Vh0(Th,P0); fespace Vh1(Th,P1);
+				fespace Vh02(Th,[P0,P0]); fespace Vh12(Th,[P1,P1]);
+				Vh1 aux1; Vh0 aux0; Vh12 [aux12x, aux12y]; Vh02 [aux02x, aux02y];		
+				
+				cout<<"entree dans le code"<<endl;
+				/* A propos du maillage */		
+				Vh0 meshSizes=hTriangle;		
+				real meshsiz=meshSizes[].max; //maximal length of edges
+				int np=Th.nv; int nt=Th.nt;
+				real alpha=meshsiz;
+				
+				
+				/* Preparation de la lecture des fichiers... */
+				real[int] loadsol(np);
+				string s;
+				
+				plot(Th);
+			
+			/* ----- INITIALISATION ----- */
+				Vh1 distVraie,distVraieTest,auxDist,redist;
+				if(ini==1) distVraie=ellipse(gAxe, pAxe, centreX,centreY);
+				if(ini==2) distVraie=coefSolide*initialisationSymCantilever (kx,ky,kz,xM0,xM1,yM0,yM1);
+				if(ini==3) {
+					{ifstream f(nomFichier);
+					 for(int i=0; i<8; i++) {
+					    f>>s;
+					  }
+					  for(int i=0; i<np; i++) {
+					    f>>loadsol[i];
+					  }
+					  distVraieTest[] = loadsol;}
+				}
+		
+	
+				distVraieTest=distVraie;
+				func distaux = (distVraieTest(x,y)<=0)*0+(distVraieTest(x,y)>0)*distVraieTest(x,y);
+				problem zeroOnMeshB(auxDist,aux1)= int2d(Th)(auxDist*aux1)-int2d(Th)(distVraieTest*aux1)+on(2,auxDist=distaux)+on(3,auxDist=distaux)+on(1,auxDist=distaux);
+				zeroOnMeshB;
+				distVraieTest=auxDist+0.0001;
+				distance(Th,distVraieTest,redist[], distmax=10);
+				distVraieTest[]=redist[];
+				distVraie=distVraieTest;
+				savesol("ini.sol",Th,distVraie);
+
+
+
+/* ----- CALCULS VALEURS INITIALES ----- */
+		
+				/* densité */
+					Vh1 X;
+					X=eps1+(1-eps1)*(distVraie<0);
+		
+				/* Normale et H liées à la forme */
+					Vh1 nx, ny, norme; Vh12 [nx1, ny1],[zx,zy];
+					Vh0 H, nabla; Vh02 [nx0,ny0];
+					
+					varf reconsN([zx,zy],[aux12x,aux12y]) = int2d(Th)(zx*aux12x+zy*aux12y);
+					matrix Anormal=reconsN(Vh12,Vh12);		
+					varf reconsNrhs([zx,zy],[aux12x,aux12y]) = int2d(Th)(nx0*aux12x+ny0*aux12y);
+					
+					nabla=(dx(distVraie))^2+(dy(distVraie))^2;
+					[nx0,ny0]=[dx(distVraie)/(sqrt(nabla+eps1^2)),dy(distVraie)/(sqrt(nabla+eps1^2))];
+					real[int] bNormal=reconsNrhs(0,Vh12);	
+					zx[]=Anormal^-1*bNormal;		 
+					norme = sqrt(zx^2+zy^2+eps1^2);
+					nx=zx/norme; ny=zy/norme;						
+					H=dx(nx)+dy(ny);
+
+
+				/* Volume */
+					real volume, volumeTest;
+					volCible=int2d(Th)(1.)*volCible;
+					volume=int2d(Th)(X)-volCible;
+
+				/* Elasticite */
+					Vh12 [ux,uy];
+		
+					/* probleme elastique */
+						real tgv=1.e30;
+						varf aa([ux,uy],[aux12x,aux12y]) = int2d(Th)(mu*X*(2.0*dx(ux)*dx(aux12x)+ 2.0*dy(uy)*dy(aux12y)+(dx(uy)+dy(ux))*(dx(aux12y)+dy(aux12x))) 
+						      										+ lambda*X*(dx(ux)+dy(uy))*(dx(aux12x)+dy(aux12y)))
+						      								+on(2,ux=0,uy=0);
+
+
+						matrix A;
+						real[int] bc = aa(0,Vh12,tgv=tgv);
+		
+						func real[int] opQ(real[int] &pp)
+						{
+						  for (int i = 0; i < pp.n; i++) {
+						    pp(i) = pp(i) / A(i, i);
+						  }
+						  pp = bc ? 0.0 : pp;
+						  return pp;
+						}
+		
+						A = aa(Vh12, Vh12, tgv=tgv, solver=CG);
+		
+						problem elas([ux,uy],[aux12x,aux12y], solver=CG) =int2d(Th)(mu*X*(2.0*dx(ux)*dx(aux12x)+ 2.0*dy(uy)*dy(aux12y)+(dx(uy)+dy(ux))*(dx(aux12y)+dy(aux12x))) 
+						     														 + lambda*X*(dx(ux)+dy(uy))*(dx(aux12x)+dy(aux12y)))-int1d(Th,3)(g1*aux12x+g2*aux12y)
+						      												+on(2,ux=0,uy=0);
+			
+
+						elas;
+		
+						real cply, cplyTest;
+						cply=int1d(Th,3)(g1*ux+g2*uy);
+		
+						Vh0 Aeueu, grhCply;
+						Aeueu=mu*((2.0*dx(ux)*dx(ux)+ 2.0*dy(uy)*dy(uy))+(dx(uy)+dy(ux))*(dx(uy)+dy(ux)))+lambda*(dx(ux)+dy(uy))*(dx(ux)+dy(uy));
+				
+						grhCply=-Aeueu;
+		
+						Lag=int1d(Th,levelset=distVraie)(grhCply)/int1d(Th,levelset=distVraie)(1.);
+				
+						/* objective function */
+						real objF, objFTest;
+						objF=cply+Lag*volume;
+							
+						cout<<endl;
+						cout<<"cply="<<cply<<"; volume="<<volume<<endl;
+						cout<<endl;
+
+			
+						Vh1 vh, vhTest, vhComplVol;
+						Vh0 grh=grhCply+Lag;
+		
+						varf veloc(vhComplVol,aux1)=int2d(Th)( (coefAlpha*alpha)^2.*( dx(vhComplVol)*dx(aux1)+dy(vhComplVol)*dy(aux1)) + vhComplVol*aux1)+ on(3, vhComplVol=0);
+						
+						matrix Avel=veloc(Vh1,Vh1);	
+							
+						varf velocrhs(vhComplVol,aux1) = int1d(Th,levelset=distVraieTest)(grh*aux1);
+						
+						real[int] bvel=velocrhs(0,Vh1);	
+						vhComplVol[]=Avel^-1*bvel;
+			
+						vh=-vhComplVol;
+							
+						[nx1, ny1]=[vh*nx, vh*ny];	
+
+						
+						cout<<endl;
+						cout<<"fin de l'initialisation, debut de la boucle"<<endl;
+
+
+
+/* ----- BOUCLE ----- */
+
+				int acc=1; int itB=0;
+				real step, maxV;
+				real tolerance;
+				
+				string svol;
+				{svol = path+"/valeurs.data";
+					 ofstream f(svol);
+					 f<<itB<<" "<<acc<<" "<<objF<<" "<<cply<<" "<<volume<<" "<<Lag<<" "<<coef<<endl;}
+	
+				int testTopo=0;
+
+	
+	for (itB=1;itB< NB;itB=itB+1){
+		cout<<"iteration "<<itB<<endl;
+		
+		tolerance=toleranceF(itB);
+		
+		distVraieTest=distVraie;
+		volumeTest=0;
+		cplyTest=0;
+		objFTest=0;
+		vhTest=0;
+				
+		maxV = max(vh[].max,-vh[].min);
+		step=coef*meshsiz/(maxV+eps1);
+		
+		savesol("templvs.chi.sol",Th,distVraieTest);
+		savesol("templvs.sol",Th,[nx1,ny1]);
+		
+		cout<<"advection"<<endl;
+		exec(pathAdvect+" templvs.mesh -dt " + step + " -s templvs.sol -c templvs.chi.sol -o templvs.chi.sol >> so.res ");
+		cout<<"fin advection"<<endl;
+		
+		{ifstream f("templvs.chi.sol");
+		 for(int i=0; i<8; i++) {
+		    f>>s;
+		  }
+		  for(int i=0; i<np; i++) {
+		    f>>loadsol[i];
+		  }
+		  distVraieTest[] = loadsol;}
+		
+		func distaux = (distVraieTest(x,y)<=0)*0+(distVraieTest(x,y)>0)*distVraieTest(x,y);	
+		zeroOnMeshB;
+		distVraieTest=auxDist+0.0001;
+		distance(Th,distVraieTest,redist[], distmax=10);		
+		distVraieTest[]=redist[];
+				
+		X=eps1+(1-eps1)*(distVraieTest<0);
+		
+		elas;
+		
+		volumeTest=int2d(Th)(X)-volCible;
+		cplyTest=int1d(Th,3)(g1*ux+g2*uy);
+		
+		objFTest=cplyTest+Lag*volumeTest;
+		
+			
+		cout<<endl;
+		cout<<"iteration "<<itB<<"; objFunction="<<objF<<"; objFunctionTest="<<objFTest<<endl;
+		cout<<"iteration "<<itB<<"; volume="<<volume<<"; volumeTest="<<volumeTest<<endl;
+		cout<<"iteration "<<itB<<"; compliance="<<cply<<"; complianceTest="<<cplyTest<<endl;
+		cout<<"iteration "<<itB<<"; lagrange="<<Lag<<endl;
+		cout<<endl;
+			
+			
+		if (objFTest<=objF*(1+tolerance)){
+			cout<<"iteration accepted"<<endl;
+			acc=1;
+			distVraie=distVraieTest;
+			volume=volumeTest;
+			cply=cplyTest;
+			Aeueu=mu*((2.0*dx(ux)*dx(ux)+ 2.0*dy(uy)*dy(uy))+(dx(uy)+dy(ux))*(dx(uy)+dy(ux)))+lambda*(dx(ux)+dy(uy))*(dx(ux)+dy(uy));
+	 		grhCply=-Aeueu;
+	 		
+	 		Lag=0.5*(Lag+(int1d(Th,levelset=distVraie)(grhCply))/(int1d(Th, levelset=distVraie)(1.)))+stepLag*(volume-volCible)/volCible;
+
+			objF=cply+Lag*volume;
+			
+			grh=grhCply+Lag;
+			
+			nabla=(dx(distVraie))^2+(dy(distVraie))^2;
+			[nx0,ny0]=[dx(distVraie)/(sqrt(nabla+eps1^2)),dy(distVraie)/(sqrt(nabla+eps1^2))];
+			
+			real[int] bNormal=reconsNrhs(0,Vh12);	
+			zx[]=Anormal^-1*bNormal;
+							 
+			norme = sqrt(zx^2+zy^2+eps1^2);
+			nx=zx/norme; ny=zy/norme;						
+			H=dx(nx)+dy(ny);
+			
+			real[int] bvel=velocrhs(0,Vh1);	
+			vhComplVol[]=Avel^-1*bvel;
+			
+			vhComplVol=-vhComplVol;
+			vhTest=vhComplVol;
+		
+			vh=vhTest;
+			[nx1, ny1]=[vh*nx, vh*ny];
+			
+							
+			if (step<0.05) coef=min(coef*1.5,coefini);
+		}
+		
+		else{
+			cout<<"iteration refused"<<endl;
+			acc=0;
+			
+			coef=coef/2.;
+		}
+		
+		plot(distVraie, viso=visoV, fill=1, value=1, cmm="distVraie, it "+itB);
+			
+			if(itB<10){
+				savesol(path+"/phi00"+itB+".sol",Th,distVraie);
+			}
+			if(itB>9 && itB<100){
+				savesol(path+"/phi0"+itB+".sol",Th,distVraie);
+			}
+			if(itB>99){
+				savesol(path+"/phi"+itB+".sol",Th,distVraie);
+			}
+			
+			{svol = path+"/valeurs.data";
+				 ofstream f(svol,append);
+				 f<<itB<<" "<<acc<<" "<<objF<<" "<<cply<<" "<<volume<<" "<<Lag<<" "<<coef<<endl;}
+				
+	} 	
+	
+	exec("python /Users/mathilde/These/Projets/CodesPython/pltvariables.py -nomVar iteration acc objF cply volume Lag coef -fichier "+path+"/valeurs.data -stockage "+path);
+			
+	exec("rm so.res");
+	exec("rm templvs.chi.sol");
+	exec("rm templvs.mesh");
+	exec("rm templvs.mesh.gmsh");
+	exec("rm templvs.sol");		
+	exec("rm ini.sol");

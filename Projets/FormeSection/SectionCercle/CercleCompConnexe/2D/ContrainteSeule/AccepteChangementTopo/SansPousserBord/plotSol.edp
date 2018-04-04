@@ -1,7 +1,7 @@
 load "medit" //pour freefem
 
-string cas="moitiePleinUnplein";
-int nbIt=40;
+string cas="SymBridge14";
+int nbIt=30;
 int w=1;
 
 
@@ -49,5 +49,5 @@ for (int it=1; it<=nbIt; it=it+1){
 			distVraie[] = loadsol;}	
 			
 		plot(Th, distVraie, fill=1, value=1, viso=visoV, wait=w, cmm="it "+it);		
-		//plot(Th, distVraie, fill=1, value=1, wait=w, cmm="it "+it);		  	
+		if(it==1 || it==nbIt) {plot(Th, distVraie, fill=1, value=1, viso=visoV,wait=w, cmm="it "+it, ps=path+"/it"+it);}		  	
 }

@@ -1,0 +1,281 @@
+load "medit" //pour freefem
+load "distance"
+load "iovtk"
+include "/Users/mathilde/These/Projets/FormeSection/SectionCercle/CodesUtiles/2D/initialisations.edp"
+
+string pathAdvect="/Users/mathilde/bin/advect";
+string pathMshdist="/Users/mathilde/bin/mshdist";
+string pathStockage="/Users/mathilde/These/Projets/FormeSection/SectionCercle/CercleCompConnexe/2D/ContrainteSeule/AccepteChangementTopo/SansPousserBord/ResultatsTests";
+
+
+include "fonctionsAnnexes.edp"
+string cmp;
+
+
+/*-------------------------------PARAMETERS-----------------------------*/
+
+	/* elastic problem */
+	real mu=8; real lambda=1; real g1=0; real g2=-5;
+	
+	/* initialisation */
+	int kx=4; int ky=3;
+
+	/* descent step (advection step) */
+	real lvol=1;	//Lagrange multiplier for the weight
+	string lvolDossier ="1";
+	real coef,coefini;
+	coef=coefini=10.;
+	real step, maxV;
+	step=1;
+
+real alpha;
+
+
+/* optimisation parameters */
+int N=300;	//number of iterations for the gradient algorithm
+real tol=0.01; 	//tolerance for the increase of the objective function
+
+/* density weak material */
+
+
+real eps1=0.001;	//small parameter avoiding division by zero in the normal computation
+
+
+
+string path=pathStockage+"/SymCantilever";
+	exec("mkdir "+path);
+	exec("cp code2dContSeule.edp "+path+"/code2dContSeule.edp");
+	real[int] visoV=[-50,-0.0001,0.0001,50]; 
+	real[int] visoV2=[-50,-0.0001,0.0001,50];
+	
+
+int it;
+string caption;
+
+	
+
+/*--------------------------------------------MESH--------------------------------------*/
+int n=3;
+real xmesh0=-1. , xmesh1= 1. ;
+real ymesh0=-0.5 , ymesh1= -0.05 , ymesh2= 0.05 , ymesh3= 0.5 ;
+int[int] l1=[1,1,1,2] ;int[int] l2=[1,3,1,2] ;int[int] l3=[1,1,1,2] ;
+
+mesh Th1=square(40*n,9*n,[xmesh0+(xmesh1-xmesh0)*x,ymesh0+(ymesh1-ymesh0)*y],label=l1,flags=1);
+mesh Th2=square(40*n,2*n,[xmesh0+(xmesh1-xmesh0)*x,ymesh1+(ymesh2-ymesh1)*y],label=l2,flags=1);
+mesh Th3=square(40*n,9*n,[xmesh0+(xmesh1-xmesh0)*x,ymesh2+(ymesh3-ymesh2)*y],label=l3,flags=1);
+mesh Th = Th1+Th2+Th3;
+
+plot(Th, WindowIndex=3);
+
+savemesh(Th,"templvs.mesh");
+
+exec("cat templvs.mesh | sed 's/MeshVersionFormatted 0/MeshVersionFormatted 1/' > toto.mesh");
+exec("mv toto.mesh templvs.mesh");
+
+		
+//Definition of finite element spaces
+fespace Vh0(Th,P0); fespace Vh12(Th,[P1,P1]);
+fespace Vh1(Th,P1); fespace Vh02(Th,[P0,P0]);
+Vh0 aux0; Vh12 [aux12x,aux12y]; Vh1 aux1; Vh02 [aux02x,aux02y];
+
+Vh0 meshSizes=hTriangle;		
+real meshsiz=meshSizes[].max; //maximal length of edges
+alpha = meshsiz;
+alpha=alpha^2.;	
+int np=Th.nv; int nt=Th.nt;
+		
+
+/*---------------------------------INITIALISATION----------------------------*/
+Vh1 distVraie, distVraieTest;
+
+func phi0=-0.1+sin(pi*kx*x)*sin(pi*ky*(y-0.5));
+
+distVraie=phi0;
+distVraieTest=distVraie;
+func distaux = (distVraieTest(x,y)<=0)*0+(distVraieTest(x,y)>0)*distVraieTest(x,y);
+problem zeroOnMeshB(auxDist,aux1)= int2d(Th)(auxDist*aux1)-int2d(Th)(distVraieTest*aux1)+on(2,auxDist=distaux);
+zeroOnMeshB;
+distVraieTest=auxDist+0.0001;
+distance(Th,distVraieTest,redist[], distmax=10);
+distVraieTest[]=redist[];
+distVraie=distVraieTest;
+		
+/*-------------------------------- DENSITY --------------------------------*/
+Vh1 X=eps1+(1-eps1)*(distVraie<0);
+
+			
+ /*--------------------------------ELASTIC PROBLEM--------------------------------*/
+ Vh12 [ux,uy];
+problem elas([ux,uy],[aux12x,aux12y]) = int2d(Th)(2*mu*X*( dx(ux)*dx(aux12x)+dy(uy)*dy(aux12y) + (dx(uy)+dy(ux))*(dx(aux12y)+dy(aux12x))/2 )
+												  + lambda*X*(dx(ux)+dy(uy))*(dx(aux12x)+dy(aux12y))   )
+												  - int1d(Th,3)(g1*aux12x+g2*aux12y)+ on(2,ux=0,uy=0);
+
+elas;
+/*------------------------------ OBJECTIVE FUNCTION (compliance) -------------------*/
+real compliance, weight, objective, objectiveTest;
+compliance=int1d(Th,3)(g1*ux+g2*uy);
+weight=int2d(Th)(X);
+objective=compliance+lvol*weight;
+cout<<"initial objective="<<objective<<endl;
+
+Vh0 Aeueu, grh;
+
+Aeueu=mu*(2.0*dx(ux)*dx(ux) + (dx(uy)+dy(ux))*(dx(uy)+dy(ux))+2.0*dy(uy)*dy(uy)) + 
+						lambda*(dx(ux)+dy(uy))*(dx(ux)+dy(uy));
+grh=(-Aeueu)+lvol;
+
+		
+/* ----------------------------- VELOCITY ------------------------------- */
+// Definition of the velocity regularization
+Vh1 vh;
+if(theta0==1){
+	solve smoothing (vh,aux1)=int2d(Th)( alpha*( dx(vh)*dx(aux1)+dy(vh)*dy(aux1) ) + vh*aux1) - int1d(Th,levelset=phi)(grh*aux1);
+}
+
+if(theta0==0){
+	solve smoothing (vh,aux1)=int2d(Th)( alpha*( dx(vh)*dx(aux1)+dy(vh)*dy(aux1) ) + vh*aux1) - int1d(Th,levelset=phi)(grh*aux1)+on(2, vh=0)+on(3, vh=0);
+}
+
+//smoothing;
+vh=-vh;
+
+
+// Computation of the normal
+Vh0 nabla;
+Vh02 [nx0,ny0];	
+Vh12 [zx,zy], [nx1, ny1], [aux1x,aux1y];
+Vh1 norm;
+			
+problem reconsNor([zx,zy],[aux1x,aux1y]) = int2d(Th)(zx*aux1x+zy*aux1y)-int2d(Th)(nx0*aux1x+ny0*aux1y);
+
+nabla=(dx(phi))^2+(dy(phi))^2;
+[nx0,ny0]=[dx(phi)/(sqrt(nabla+eps1^2)),dy(phi)/(sqrt(nabla+eps1^2))];
+reconsNor;
+norm = sqrt(zx^2+zy^2+eps1^2);
+[nx1,ny1] = [zx/norm,zy/norm];
+[nx1,ny1]=[vh*nx1, vh*ny1];
+			
+
+/*---------------------------WRITTING AND PLOTTING----------------------*/
+		
+	ecritureValeurs(path, 1, 0, objective, compliance, weight, coef);
+	pathGraph=path+"/graphes";
+	savevtk(pathGraph+"/phi000.vtk",Th,phi);
+	
+int acc=1;	
+	
+	
+///////////////////////////////////////////////
+// Loop of the gradient algorithm iterations //
+///////////////////////////////////////////////
+for (it=1;it< N;it=it+1)
+{
+	phiTest=phi;
+	objectiveTest=0;
+	
+	
+	if(tol!=0){
+		if ( it == 200 ){
+	    	tol = 0.005;
+		}	
+		if ( it == 250 ){
+	    	tol = 0.001;
+		}
+		if ( it == 300 ){
+	    	tol = 0.00;
+		}	
+	}
+	
+	cout << "iteration= "<<it  << endl;
+
+			maxV = max(vh[].max,-vh[].min);
+			step=coef*meshsiz/(maxV+eps1);
+		
+					
+			cout<<"advection part"<<endl;
+			savesol("templvs.chi.sol",Th,phiTest); //fonction transportée 
+			savesol("templvs.sol",Th,[nx1,ny1]); //vitesse de transport. champ vectoriel	
+		     
+			cmp = "/Users/mathilde/bin/advect templvs.mesh -dt " + step + " -s templvs.sol -c templvs.chi.sol -o templvs.chi.sol >> so.res ";
+  			exec(cmp);
+  			
+  			readSolFile("templvs.chi.sol", Th, phiTest[]);
+			  
+			redistanciation(phiTest);
+			
+			AchiComp(Achi, phiTest, eps1);
+		
+			elas;
+			
+			
+			// Computation of the provisional objective function
+
+			compliance=int1d(Th,3)(g1*ux+g2*uy);
+			weight=int2d(Th)(Achi);
+			objectiveTest=compliance+lvol*weight;
+			cout <<"provisional objective="<<objectiveTest<<endl;
+
+	
+	if (objectiveTest<=objective*(1+tol))
+	{
+		acc=1;
+		phi=phiTest;
+		objective=objectiveTest;
+		
+		if(Achi0==1){
+			Aeueu=mu*Achi*(2.0*dx(ux)*dx(ux) + (dx(uy)+dy(ux))*(dx(uy)+dy(ux))+2.0*dy(uy)*dy(uy)) + 
+						lambda*Achi*(dx(ux)+dy(uy))*(dx(ux)+dy(uy));
+			grh=(-Aeueu)+lvol*Achi;
+		}
+
+		if(Achi0==0){
+			Aeueu=mu*(2.0*dx(ux)*dx(ux) + (dx(uy)+dy(ux))*(dx(uy)+dy(ux))+2.0*dy(uy)*dy(uy)) + 
+						lambda*Achi*(dx(ux)+dy(uy))*(dx(ux)+dy(uy));
+			grh=(-Aeueu)+lvol;
+		}
+		
+		if(theta0==1){
+			solve smoothing (vh,aux1)=int2d(Th)( alpha*( dx(vh)*dx(aux1)+dy(vh)*dy(aux1) ) + vh*aux1) - int1d(Th,levelset=phi)(grh*aux1);
+		}
+
+		if(theta0==0){
+			solve smoothing (vh,aux1)=int2d(Th)( alpha*( dx(vh)*dx(aux1)+dy(vh)*dy(aux1) ) + vh*aux1) - int1d(Th,levelset=phi)(grh*aux1)+on(2, vh=0)+on(3, vh=0);
+		}
+		
+		vh=-vh;
+
+		nabla=(dx(phi))^2+(dy(phi))^2;
+		[nx0,ny0]=[dx(phi)/(sqrt(nabla+eps1^2)),dy(phi)/(sqrt(nabla+eps1^2))];
+		reconsNor;
+		norm = sqrt(zx^2+zy^2+eps1^2);
+		[nx1,ny1] = [zx/norm,zy/norm];
+		[nx1,ny1]=[vh*nx1, vh*ny1];
+		
+		if (step<0.05) coef=min(coef*1.5, coefini);
+
+		cout <<"descent step accepted"<<endl;
+	}
+
+	if (objectiveTest>objective*(1+tol))
+	{	
+		acc=0;
+		coef=coef/2;		
+		cout <<"descent step rejected"<<endl;	
+	}
+	
+	ecritureValeurs(path,acc,it,objective, compliance, weight, coef); 
+	if(it<10){
+		savevtk(pathGraph+"/phi00"+it+".vtk",Th,phi);
+	}
+	if(it>9 && it<100){
+		savevtk(pathGraph+"/phi0"+it+".vtk",Th,phi);
+	}
+	if(it>99){
+		savevtk(pathGraph+"/phi"+it+".vtk",Th,phi);
+	}
+}
+
+
+
+
+
