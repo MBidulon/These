@@ -1,0 +1,15 @@
+func real heaviside(real t, real epsilon){
+	real a;
+	if(t<-epsilon) {a=0;}
+	if(t>epsilon) {a=1;}
+	if(t>-epsilon && t<epsilon) {a=0.5*(1+t/epsilon+(1/pi)*sin(pi*t/epsilon));}		
+	return (a);
+}
+
+func real heavisideP(real t, real epsilon){
+	real a;
+	if(t<-epsilon) {a=0;}
+	if(t>epsilon) {a=1;}
+	if(t>-epsilon && t<epsilon) {a=(1/(2*epsilon))*(1+cos(pi*t/epsilon));}		
+	return(a);
+}

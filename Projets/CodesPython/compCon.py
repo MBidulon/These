@@ -1,4 +1,4 @@
-# décomposer en composantes connexes :
+# decomposer en composantes connexes :
 #   on passe en arguments :
 #               -mesh : le fichier du mesh (fichier gmsh)
 #               -lvlSet : le fichier level set qu'on va utiliser
@@ -33,8 +33,8 @@ P=P1Function(M,nomLvlSet);
 #P.testIsSolid();
 
 [compInt,compExt]=P.connectedComponent();
-#print("nb de composantes intérieures : ",compInt)
-#print("nb de composantes extérieures : ",compExt)
+#print("nb de composantes interieures : ",compInt)
+#print("nb de composantes exterieures : ",compExt)
 
 nomSortie="Res"+nomMesh;
 M.saveFormat2(nomSortie);

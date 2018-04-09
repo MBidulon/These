@@ -443,8 +443,8 @@ class P1Function:
             graph[tri].label=parent.label;
         for tri in range(nt):
             self.mesh.Connectivity['Triangles'][tri][-1]=graph[tri].label;
-        print("nb comp intérieures = ",compConInt);
-        print("nb comp extérieures = ",compConExt);
+        print("nb comp interieures = ",compConInt);
+        print("nb comp exterieures = ",compConExt);
         a=[0,0];
         a[0]=compConInt;
         a[1]=compConExt;

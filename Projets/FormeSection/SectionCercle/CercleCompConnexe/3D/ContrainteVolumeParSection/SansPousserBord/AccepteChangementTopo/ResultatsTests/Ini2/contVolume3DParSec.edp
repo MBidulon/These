@@ -1,8 +1,8 @@
-string pathAdvect ="/Users/mathilde/bin/advect";
-string pathMshdist="/Users/mathilde/bin/mshdist";
-string pathCompConn="/Users/mathilde/These/Projets/CodesPython/compCon.py";
-string pathPltVariables="/Users/mathilde/These/Projets/CodesPython/pltvariables.py";
-string pathStockage="/Users/mathilde/These/Projets/FormeSection/SectionCercle/CercleCompConnexe/3D/ContrainteVolumeParSection/SansPousserBord/AccepteChangementTopo/ResultatsTests";
+string pathAdvect ="/home/mathilde.boissier/bin/advect";
+string pathMshdist="/home/mathilde.boissier/bin/mshdist";
+string pathCompConn="/home/mathilde.boissier/These/Projets/CodesPython/compCon.py";
+string pathPltVariables="/home/mathilde.boissier/These/Projets/CodesPython/pltvariables.py";
+string pathStockage="/home/mathilde.boissier/These/Projets/FormeSection/SectionCercle/CercleCompConnexe/3D/ContrainteVolumeParSection/SansPousserBord/AccepteChangementTopo/ResultatsTests";
 
 		
 
