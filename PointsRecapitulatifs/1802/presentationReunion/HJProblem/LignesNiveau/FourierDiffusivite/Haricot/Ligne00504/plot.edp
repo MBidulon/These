@@ -1,0 +1,62 @@
+
+//verbosity=0;
+
+
+load "medit" //pour freefem
+load "iovtk" //pour paraview
+load "distance"
+load "isoline"
+include "/Users/mathilde/Desktop/These/CodesUtiles/redistanciationLectureFichiers.edp"
+
+
+
+int nbIt=552;
+
+/* Choix */
+
+	int nbCas=3; //1 : rectangle; 2 : etoile; 3 : haricot
+
+	real epsilonChoisie=0.001;
+	string stringEpsilon="0001";
+
+/* Récupération du maillage créé précédemment */
+		string path= "/Users/mathilde/Desktop/These/Projets/HJProblem/ModelePhysique";
+		string pathMaillage, pathTraj;
+	
+		if(nbCas==1) { 	pathMaillage=path+"/GenerationMaillageAdapteForme/Maillages/distance/Rectangle/squareINI.msh";
+						pathTraj=path+"/CalculTrajectoiresImplicites/distanceSignee/acDistance/Rectangle/epsilon"+stringEpsilon+"/ScanningPath.sol";
+		}
+		
+		if(nbCas==2) { 	pathMaillage=path+"/GenerationMaillageAdapteForme/Maillages/distance/Etoile/etoileINI.msh";
+						pathTraj=path+"/CalculTrajectoiresImplicites/distanceSignee/acDistance/Etoile/epsilon"+stringEpsilon+"/ScanningPath.sol";
+		}
+		
+		if(nbCas==3) { 	pathMaillage=path+"/GenerationMaillageAdapteForme/Maillages/distance/Haricot/haricotINI.msh";
+						pathTraj=path+"/CalculTrajectoiresImplicites/distanceSignee/acDistance/Haricot/epsilon"+stringEpsilon+"/ScanningPath.sol";
+		}	
+		
+		mesh Sh=readmesh(pathMaillage);
+		fespace Vh1(Sh,P1);
+		fespace Vh0(Sh,P0);
+		Vh0 meshSizes=hTriangle;		
+		real meshsiz=meshSizes[].max; //maximal length of edges
+		int np=Sh.nv;
+		int nt=Sh.nt;
+		
+		real[int] visoTemp=[0,1,5,10,50,100,250,350,450,550,575,600,625,650,675,700,725,750,800,1000];
+		
+		Vh1 T,source;
+		string fichier;
+		
+		for(int it=0; it<=nbIt; it=it+1){
+			cout<<"it="<<it<<endl;
+			fichier="/Users/mathilde/Desktop/These/PointsRecapitulatifs/180213/HJProblem/LignesNiveau/FourierDiffusivite/Haricot/Ligne00504";
+			readSolFile(fichier+"/Temperature/T"+it+".sol", Sh, T[]);
+			readSolFile(fichier+"/Source/source"+it+".sol", Sh, source[]);
+			plot(T, fill=1, value=1, viso=visoTemp, WindowIndex=1, wait=0);
+			plot(source, fill=1, WindowIndex=2, wait=0);
+		}
+		
+				
+	
+	

@@ -1,0 +1,63 @@
+\begin{thebibliography}{1}
+\expandafter\ifx\csname fonteauteurs\endcsname\relax
+\def\fonteauteurs{\scshape}\fi
+
+\bibitem{AllaireTakingaccountthermal2017}
+G.~\bgroup\fonteauteurs\bgroup Allaire\egroup\egroup{} et
+  L~\bgroup\fonteauteurs\bgroup Jakab{\v c}in\egroup\egroup{} :
+\newblock Taking into account thermal residual stresses in topology
+  optimization of structures built by additive manufacturing.
+\newblock d\'ecembre 2017.
+
+\bibitem{DebRoyAdditivemanufacturingmetallic2018}
+T.~\bgroup\fonteauteurs\bgroup DebRoy\egroup\egroup{}, H.~L.
+  \bgroup\fonteauteurs\bgroup Wei\egroup\egroup{}, J.~S.
+  \bgroup\fonteauteurs\bgroup Zuback\egroup\egroup{},
+  T.~\bgroup\fonteauteurs\bgroup Mukherjee\egroup\egroup{}, J.~W.
+  \bgroup\fonteauteurs\bgroup Elmer\egroup\egroup{}, J.~O.
+  \bgroup\fonteauteurs\bgroup Milewski\egroup\egroup{}, A.~M.
+  \bgroup\fonteauteurs\bgroup Beese\egroup\egroup{},
+  A.~\bgroup\fonteauteurs\bgroup Wilson-Heid\egroup\egroup{},
+  A.~\bgroup\fonteauteurs\bgroup De\egroup\egroup{} et
+  W.~\bgroup\fonteauteurs\bgroup Zhang\egroup\egroup{} :
+\newblock Additive manufacturing of metallic components \textendash{}
+  {{Process}}, structure and properties.
+\newblock {\em Progress in Materials Science}, 92\string:\penalty500\relax
+  112--224, mars 2018.
+
+\bibitem{LiParametricanalysisthermal2014}
+Yali \bgroup\fonteauteurs\bgroup Li\egroup\egroup{} et Dongdong
+  \bgroup\fonteauteurs\bgroup Gu\egroup\egroup{} :
+\newblock Parametric analysis of thermal behavior during selective laser
+  melting additive manufacturing of aluminum alloy powder.
+\newblock {\em Materials \& Design}, 63\string:\penalty500\relax 856--867,
+  novembre 2014.
+
+\bibitem{MegahedMetaladditivemanufacturingprocess2016}
+Mustafa \bgroup\fonteauteurs\bgroup Megahed\egroup\egroup{}, Hans-Wilfried
+  \bgroup\fonteauteurs\bgroup Mindt\egroup\egroup{}, Narcisse
+  \bgroup\fonteauteurs\bgroup N'Dri\egroup\egroup{}, Hongzhi
+  \bgroup\fonteauteurs\bgroup Duan\egroup\egroup{} et Olivier
+  \bgroup\fonteauteurs\bgroup Desmaison\egroup\egroup{} :
+\newblock Metal additive-manufacturing process and residual stress modeling.
+\newblock {\em Integrating Materials and Manufacturing Innovation},
+  5(1)\string:\penalty500\relax 4, d\'ecembre 2016.
+
+\bibitem{Robertsthreedimensionalfiniteelement2009}
+I.~A. \bgroup\fonteauteurs\bgroup Roberts\egroup\egroup{}, C.~J.
+  \bgroup\fonteauteurs\bgroup Wang\egroup\egroup{},
+  R.~\bgroup\fonteauteurs\bgroup Esterlein\egroup\egroup{},
+  M.~\bgroup\fonteauteurs\bgroup Stanford\egroup\egroup{} et D.~J.
+  \bgroup\fonteauteurs\bgroup Mynors\egroup\egroup{} :
+\newblock A three-dimensional finite element analysis of the temperature field
+  during laser melting of metal powders in additive layer manufacturing.
+\newblock {\em International Journal of Machine Tools and Manufacture},
+  49(12)\string:\penalty500\relax 916--923, octobre 2009.
+
+\bibitem{VanBelleAnalysemodelisationsimulation2013}
+Laurent \bgroup\fonteauteurs\bgroup Van~Belle\egroup\egroup{} :
+\newblock {\em Analyse, Mod{\'e}lisation et Simulation de l'apparition de
+  Contraintes En Fusion Laser M{\'e}tallique}.
+\newblock {Lyon, INSA}, novembre 2013.
+
+\end{thebibliography}

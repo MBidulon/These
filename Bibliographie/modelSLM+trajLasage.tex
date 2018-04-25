@@ -1,0 +1,518 @@
+%----------------------------------------------------------------------------------------
+%	PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
+%----------------------------------------------------------------------------------------
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc} % to encode the document so that we can use more caracters (like Latin ones)
+\usepackage[T1]{fontenc} % to encode the document so that we can use more caracters (like Latin ones)
+\usepackage[english]{babel} % to write in English
+
+\usepackage{geometry} % the paper's format and marges
+\geometry{hmargin=2.3cm,vmargin=1.7cm}
+
+\usepackage{titling} % to put the title where I want
+
+% maths packages
+\usepackage{mathtools}
+\usepackage{amsmath,amsbsy}
+\usepackage{bm}
+\usepackage{bigints}
+\usepackage{stmaryrd}
+\usepackage{amsfonts}
+
+% graphs packages
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{wrapfig,epsfig}
+
+\usepackage{color}
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\newenvironment{proof}[1][Proof]{\begin{trivlist}
+		\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{definition}[1][Definition]{\begin{trivlist}
+		\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{example}[1][Example]{\begin{trivlist}
+		\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{remark}[1][Remark]{\begin{trivlist}
+		\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+
+\newcommand{\qed}{\nobreak \ifvmode \relax \else
+	\ifdim\lastskip<1.5em \hskip-\lastskip
+	\hskip1.5em plus0em minus0.5em \fi \nobreak
+	\vrule height0.75em width0.5em depth0.25em\fi}
+
+\usepackage{vmargin}
+\setmarginsrb{0.5cm}{0.5cm}{1cm}{1cm}{0cm}{0cm}{0cm}{0cm}
+
+\usepackage[final]{pdfpages}
+
+\usepackage{algorithm}
+\usepackage{algorithmic}
+%----------------------------------------------------------------------------------------
+%DOCUMENT
+%----------------------------------------------------------------------------------------
+
+\begin{document}
+
+
+\begin{center}
+	\textbf{Bibliographie}
+\end{center}
+
+
+\section{Modelisation}
+\begin{itemize}
+	\item \textbf{\emph{Additive manufacturing of metallic components - Process, structure and properties} \\
+		T.DebRoy and al., Progress in Materials Science \\
+		2017} 
+	
+	\vspace{0cm}
+	
+	Très utile : section 2 du document.
+	
+	\vspace{0cm}
+	
+	Point physique sur ce qui se fait en imprimante 3D et notamment en SLM avec :
+	\begin{itemize}
+		\item description des poudres
+		\item description de la source de chaleur
+		\item interacion de la source de chaleur avec les poudres (quelle absorption de chaleur pour la poudre et le solide)
+		\item bain de fusion : transferts de chaleur et de masse + conditions aux limites + nombres sans dimensions associés + problèmes de stabilité du bain de fusion (Kelvin Helmokts instability et Plateau Raleigh instability) + défauts liés au bain de fusion.
+		\item modélisation pour déterminer les contraintes résiduelles avec une approche strain-temperature
+	\end{itemize}
+	
+	Plus description plus complete du process ensuite avec description de la poudre... mais moins utile pour moi.
+	
+	\vspace{0cm}
+	
+	Biblio liée à lire :
+	
+	\begin{itemize}
+		\item An improved prediction of residual stresses and distortion in additive manufacturing, T.Mukherjee, W.Zhang, T.DebRoy, 2017
+		
+		\item Residual stresses in selective laser sintering and selective laser melting, P.Mercelis, JP.Kruth, 2006
+	\end{itemize}
+	
+	
+	\item \textbf{\emph{Residual stresses in selective laser sintering and selective laser melting} \\
+		P.Mercelis, JP.Kruth, Emerald \\
+		2006} 
+		
+	\vspace{0cm}
+	
+		traite des contraintes résiduelles. A priori 2 raisons qui créent les contraintes résiduelles macroscopiques : gradients de température (chauffage rapide et conduction lente) et phases de refroidissement des couches supérieures qui induisent des contractions thermiques. Ne parle pas du bain de fusion.  Modélisation simplifiée :
+		
+		\begin{itemize}
+			\item contraction thermique induit contrainte thermique : $\sigma^{th}=\alpha(T-T_{ini})$
+			\item utilisation de l'équilibre... et de l'élastisticité classique pour trouver les contraintes et déformations résiduelles.
+			\item à la fin de la production on enlève le produit fini de la plaque de base. Cela relaxe un peu les contraintes résiduelles.
+		\end{itemize}	
+		
+		Résultats théoriques : le nombre de couches, la géométrie du socle de base ainsi que les propriétés des matériaux influencent les contraintes résiduelles.
+		
+		\vspace{0cm}
+		
+		Expérimental : scanning strategies. 4 stratégies sont testées : lignes droutes selon X, lignes droites selon Y, secteurs (dans les secteurs, lignes droites selon X ou selon Y avec intervertissement des secteurs en X et Y à chaque couche). 
+		\begin{itemize}
+			\item selon direction longue donne res stress plus faible que dans direction courte.
+			\item pour les secteurs on a une cont res qui est entre les deux trouvées précédemment.
+			\item l'ordre dans lequel sont traités les secteurs influe sur les contraintes résiduelles.
+		\end{itemize}
+		
+		
+		
+		
+		\item \textbf{\emph{Metal additive-manufacturing process and residual stress modeling} \\
+			M.Megahed, HW.Mindt and al., Integrating Materials and Manufacturing Innovation \\
+			2016}
+		
+		L'ARTICLE de référence. Très bien expliqué et distingue bien le microscopique et le macroscopique.
+		
+		\item \textbf{\emph{Investigation of residual stresses induced during the selective laser melting process} \\
+			L.Van-Belle, JC.Boyer and al., Key Engineering Materials \\
+			2013} 
+		
+		\item \textbf{\emph{An improved prediction of residual stresses and distortion in additive manufacturing} \\
+			T.Mukherjee, W.Zhang, T.DebRoy, \\
+			2017}
+		
+		\vspace{0cm}
+		
+		A priori plutôt à propos des échanges thermiques liés au bain de fusion. La partie qui lie ça au reste de la pièce est peu claire et un peu cachée par Abaqus...
+		
+		\vspace{0cm}
+		Hypothèses pour cet article : les densités du solide et du fluide sont supposées constantes. Les surfaces sont considérées plates. Les pertes de matières par évaporation d'éléments sont négligées.
+		
+		Equations d'importance -> les mêmes que pour l'article de DebRoy cité plus haut.
+		On ajoute un "modèle élastoplastique":
+		
+		\begin{equation}
+		\left\{
+		\begin{array}{l}
+		\Delta\epsilon_{l,m}^{tot}=\Delta\epsilon_{l,m}^{E}+\Delta\epsilon_{l,m}^{P}+\Delta\epsilon_{l,m}^{th}+\Delta\epsilon_{l,m}^{autre} \\
+		\Delta\sigma_{i,j}^{E}=D_{i,j,l,m}\Delta\epsilon_{l,m}^{E} \\
+		\Delta\epsilon_{l,m}^{th}=\beta\delta_{l,m}\Delta T
+		\end{array}
+		\right.
+		\end{equation}
+		
+		et des conditions aux limites de Marangoni mais ça parait plutôt modéliser le bain de fusion.
+		
+		\item \textbf{\emph{A three-dimensional finite element analysis of the temperature field during laser melting of metal powders in additive layer manufacturing} \\
+			IA.Roberts, CJ.Wang, and al. \\
+			2009}
+		
+		\vspace{0cm}
+		
+		même modélisation que dans l'article de Li et Gu.
+		
+		\item \textbf{\emph{Parametric analysis of thermal behaviour during laser melting additive manufacturing of aluminium allloy powder} \\
+			Y.Li, D.Gu \\
+			2014}
+		
+		\vspace{0cm}
+		
+		Modélisation :
+		\begin{equation}
+		\begin{array}{ll}
+			\rho c\partial_t T=\partial_x(k\partial_x T)+\partial_y(k\partial_y T)+\partial_z(k\partial_z T)+Q  & \forall t,\,\,\textrm{sur}\,\Omega\\
+			T(x,y,z,t=0)=T_0 & \textrm{sur}\,\Omega \\
+			k\partial_nT-q+q_c+q_r=0 & \forall t\,\,\textrm{sur\,frontiere} \\
+			q_c=h(T-T_0) & \,\\
+			q_r=\sigma\epsilon(T^4-T_0^4)& \, \\
+			q=\frac{2AP}{\pi R^2}exp(-\frac{2r^2}{R^2}) & \,\\
+			k_p=k_s(1-\phi)\quad\textrm{avec}\quad \phi=\frac{\rho_s-\rho_p}{\rho_s}& \,
+		\end{array}
+		\end{equation}
+		+Résultats expérimentaux.
+\end{itemize}
+	
+
+
+\section{Trajectoires de lasage}
+
+\subsection{Pocketing}
+
+\begin{itemize}
+	\item \textbf{\emph{Optimization problems related to zigzag pocket machining} \\
+		EM.Arkin, M.Held, CL. Smith \\
+		1997}
+	
+		\vspace{0cm}
+		
+		2 types de trajectoires : contour-parallel machining ou direction-parallel machining. 
+		
+		\vspace{0cm}
+		
+		Objectifs : ne pas repasser au même endroit et minimiser le nombre de retraots de l'outil.
+		
+		\vspace{0cm}
+		
+		On sait qu'on veut utiliser des zigzag. La direction des zigzag est aussi fixee. L'idée est uniquement ici de déterminer comment on parcourt ces zigzags. On représente  le problème sous la forme d'un graphe et on le réduit à un problèle de parcours de graphe. Pour cela on distingue les différents noeuds du graphe :
+		\begin{itemize}
+			\item c-edge : c'est un passage obligé entre deux noeuds. Il doit être parcouru exactement une fois.
+			\item nc-edge : passage pas obligé pour relier deux noeuds. Il doit être arcouru au plus une fois.
+			\item r-edge : retrait. A minimiser. \textbf{hyp : On décide que chaque r-edge doit être traversé au plus une fois}.
+		\end{itemize}	
+		
+		Probleme 1 : trouver un path qui vérifie hypothèses ci-dessus. 
+		
+		\vspace{0cm}
+		
+		Probleme 2 : existe-t-il un path avec au plus k retraits?
+		
+		\vspace{0cm}
+		
+		Idées pour résoudre : on simplifie le graphe : on le décompose en "splines" (qui ressemblent plus ou moins à des échelles). Puis pour chaque splines, on peut trouver une trajectoire optimale. Enfin, on joint bien les splines.
+		
+	
+	\item \textbf{\emph{Pocketing toolpath computation using optimization method} \\
+		M.Bouard, V.Pateloup, P.Armand \\
+		2011}
+		Là encore, 2 schémas de fabrication possibles : contour-parallel (appelé ici offset) ou direction-parallel. Dans cet article \textbf{offset curves} sont choisies.
+		
+		\vspace{0cm}
+		
+		Ce qui se faisait déjà sur ces courbes :
+		\begin{itemize}
+			\item Calcul des courbes  en utilisant algo de Voronoi (voir Held), "pair-wise" offset algo, "pixel-based" approche.... plus d'autres algos \textbf{purement géométriques} et n'utilisant pas d'optimisation.
+			
+			\item A partir de ces algos, améliorations : méthodes pour augmenter le rayon de courbure aux coins et approximation de ces courbes par des $\mathcal{B}$-courbes avec pour idée de rendre la trajectoire $\mathcal{C}^2$.
+		\end{itemize}
+		
+		Probleme et état de l'art dans le cas du pocketting :
+		
+		\vspace{0cm}
+		
+		Contraintes : 
+		\begin{itemize}
+			\item cutting constraints 
+			\item mechanical constraints : limiter les efforts de la machine
+			\item geometrical constraints : recouvrement
+		\end{itemize}
+		
+		Algo de détermination de la trajectoire, 6 étapes (Choi) :
+		\begin{itemize}
+			\item déterminer la frontière du domaine à gérer.
+			\item calculer les courbes off-set.
+			\item repérer les zones non-machinables avec ces courbes offset.
+			\item ajustement pour enlever les zones non machinables et enlever les boucles.
+			\item création d'une trajectoire qui lie toutesles courbes offset.
+			\item adaptation pour les coins.
+		\end{itemize}
+		
+		Pour minimiser le temps de fabrication, distinctions de deux situations :
+		\begin{itemize}
+			\item Vitesse de fabrication constante :
+			\begin{itemize}
+				\item choix d'une bonne direction de zigzag
+				\item remplissage de ce qu'il reste par contour-parallel (ou minimisation de ces zones)
+				\item optimisation des points de connexions entre les courbes.
+			\end{itemize}
+			\item Vitesse non constante :
+			\begin{itemize}
+				\item limiter la vitesse dans les endroits compliqués à gérer pour diminuer l'erreur de contour.
+			\end{itemize}
+		\end{itemize}
+		
+		Ce qui a été fait avant : à partir de la trajectoire de base, rayon de courbure controlé et courbe $\mathcal{C}^2$. Cependant, pas de mention de la minimisation du temps de fabrication. (Help, Bieterman) Ici différent. 
+		
+		\vspace{0cm}
+		Contraintes : 
+		\begin{itemize}
+			\item courbe au moins $\mathcal{C^2}$ et aussi régulière que possible.
+			\item on se base sur des courbes offset
+			\item on maitrise la distance entre deux cutting pathes ($d_{min}<d<d_{max}$)
+		\end{itemize}
+		
+		Fonction objectif : $\int_{0}^{1}\kappa(t)^2dt$.
+		
+		\vspace{0cm}
+		
+		Optimisation paramétrique car la courbe résultante est basée sur des $\mathcal{B}$-courbes.
+	
+	\item \textbf{\emph{A smooth spiral tool path for high speed machining of 2D pockets} \\
+		M.Held, C.Spielberger \\
+		2009}
+	
+	\vspace{0cm}
+	
+	NON LU (peut être pas la peine)
+	
+	\item \textbf{\emph{Optimization of tool-path generation for material extrusion-based additive manufacturing technology} \\
+		Y.Jin,Y.He,J.Fu,W.Gan,Z.Lin, \\
+		2014}
+	
+	\vspace{0cm}
+	
+	2 types de trajectoires : 
+	\begin{itemize}
+		\item isolignes : meilleure précision mais calcul couteux et etraine des zones non traitées (haricot au milieu pas exemple ou zones étroites)
+		\item direction-parallel : rapide à implémenter mais moins précis.
+	\end{itemize}
+	Choix : contour pour la frontière et parallel-direction à l'intérieur.
+	
+	Objectifs pour diraction-parallel : 
+	\begin{itemize}
+		\item equilibre entre vitesse de fabrication et qualité -> détermination d'une bonne direction pour les pattern.
+		\item minimisation du nombre de zones avec directions différentes pour éviter de passer de ON a OFF tout le temps (minimiser le nombre de retraits du laser)
+		\item optimisation de l'ordre dans lequel les sous-trajectoires vont être parcourues.
+	\end{itemize}
+	
+	L'article se concentre sur la détermination de la direction optimale et de comment lier les différentes cellules obtenues.
+	
+	\vspace{0cm}
+	
+	Inclinaison : deux problèmes à équilibrer :
+	\begin{itemize}
+		\item efficiently priority based strategy : modèle de vitesse selon l'angle à réaliser. On calcule l'inclinaison de manière à minimiser le temps de fabrication (sachant qu'on ne passe pas d'une ligne à l'autre en angle droit).
+		
+		\item quality priority based strategy : limiter les zones overfilled ou underfilled.
+	\end{itemize}
+	
+	Puis stratégie pour lier les différentes zones.
+\end{itemize}		
+
+\subsection{Selective Laser Melting}
+
+\begin{itemize}
+	\item \textbf{\emph{Distortion minimization of laser-processed components through control of laser scanning patterns} \\
+		K.Dai, L.Shaw, \\
+		2002}
+		
+		
+	\item \textbf{\emph{On the effect of scanning strategies in the selective laser melting process} \\
+		J.Jhabvala and al., \\
+		2010}
+	
+		\vspace{0cm}
+		
+		Evaluation expérimentale et simulation de 4 trajectoires différentes. 
+		\begin{itemize}
+			\item lignes droites : fcile à générer. Cependant, pour ne pas avoir trop de problèmes physiques, il faut vitesse élevée et donc, pour fondre, puissance élevée ce qui est compliqué. Cette méthode induit de la distortion car on a du mou entre deux plaques de dur (là où passe le laser) et donc on va se retrouver avec un profil en selle de cheval...
+			\item spirale : mieux même s'il faut là aussi une vitesse élevée. Le problème est un fort overheating au centre.
+			\item paintbrush : par zones zigzag coupés. mieux que le zigzag car le fait de faire par zones permet à la tempéérature de s'homogénéiser. 
+			\item chessboard : mieux aussi. Il vaut mieux traiter les cellules dans un ordre aléatoire.
+		\end{itemize}
+		On réalise que le traitement par petites cellules est intéressant car il permet à la température de s'homogénéiser.
+		
+	\item \textbf{\emph{Equidistant path generation for improving efficiency in layered manufacturing} \\
+		Y.Yang and al., \\
+		2002}
+	
+		\vspace{0cm}
+		Article plus déposition de matière que SLM. 
+		A propose de comment trouver les lignes de niveaux de la distance. Résultats intéressants :
+		\begin{itemize}
+			\item Pour toutes les méthodes vues, si forme "régulière", la longueur du chemin est approximativement la même. 
+			\item En considérant le temps d'accélération du laser et son temps de ralentissement avant l'arret, on note que le temps pour réaliser le chemin donné par les courbes "de distance" est plus faible que celui pour les zigzag.
+			\item L'utilisation de la distance aux bords permet aussi de ne pas faire commencer toutes les courbes au même endroit ce qui équilibre d'un point de vue de la température.
+		\end{itemize}
+	
+	\item \textbf{\emph{Multi-objective optimization of cellular scanning strategy in selective laser melting} \\
+		A.Ahrari, S.Mohanty, \\
+		2017}
+	
+	\vspace{0cm}
+	
+	Idée : 32 cellules, 6 stratégies différentes : quelle stratégie dans quelle cellule?
+	\begin{itemize}
+		\item Numerical model : equation de la chaleur classique et terme source=laser, pas de temps pas trop grand pour être sûr que le laser fait chaque cellule.
+		\item Objectifs :
+		\begin{itemize}
+			\item Residual stresses : une région molle entourée de régions dures -> contrainte résiduelle. (temp faible entoure temp forte -> gradient spatial). Pénaliser les zones à fort gradient et les régions isolées trop chauffées.
+			A minimiser :
+			\begin{equation}
+			C_{resConst}=\int_{0}^{t} \int_{\Omega}\Big(|\partial_xT|+|\partial_yT|\Big)dxdt
+			\end{equation}
+			
+			\item Distortion : dû au déplacement élastique non induit par la méca pure mais par la thermique. A minimiser :
+			\begin{equation}
+			\begin{array}{l}
+			\Delta_{x_{i,j},t_k}=\alpha (T_{x_{i,j},t_k}-T_{\infty})\\
+			C_{dist}(t)=\int_{\Omega}\Delta_{x,t}dx\\
+			C_{dist}=\int_{0}^{t}C_{dist}(t)dt
+			\end{array}
+			\end{equation}
+			
+			\item Overheated regions. A minimiser :
+			\begin{equation}
+			C_{ovheat}=\frac{1}{K}\int_{0}{t_F}\int_{\Omega}\chi_{(T>=T_{sup})}Tdxdt
+			\end{equation}
+		\end{itemize}
+		
+		\item Algo d'optim : $N_m\times N_n$ régions et 6 traj de lasage (zigzag horizontal, vertical; lignes droites horizontales, verticales; spirale entrante, sortante)
+		Puis algo génétique. Idee est d'optimiser en même temps la séquence de cellules et les trajectoires pour les remplir.
+		
+	\end{itemize}
+	
+	Biblio en plus:
+	\begin{itemize}
+		\item C. Hauser and T. Childs, "Raster scan selective laser melting of the surface layer of a tool steel powder bed," Proceedings of the National Academy of Sciences of the United States of America, vol. 103, no. 4, pp. 379-384, 2006.
+		\item R. Stamp and P. Fox, "The development of a scanning strategy for the manufacture of porous biomaterials by selective laser melting," Journal of Material Science, pp. 1839-1849, 2009.
+		\item W. Zhang, Y. Shi, B. Liu, L. Xu and W. Jiang, "Consecutive sub-sector scan mode with adjustable scan lengths for selective laser melting," International Journal of Advanced Manufacturing Technology, vol. 41, no. 7-8, pp. 706-713, 2009.
+		\item T. Antignac, J. Jhabvala, E. Boillat and R. Glardon, "On the effect of scanning strategies in the selective laser melting process," Virtual and Physical Prototyping, vol. 5, no. 2, pp. 99-109, 2010.
+		\item B. E. A. T. G. R. Jhabvala J., "Study and simulation of different scanning strategies in SLM," in Innovative Developments In Design And Manufacturing, Taylor and Francis Group, 2010, pp. 369-375.
+		\item B. Qian, F. Han, Y. Shi and Q. Wei, "Comparison of two scan strategies applied to the selective laser melting," in International Conference on Computer Application and System Modelling, 2010.
+		\item Y. Shi, Q. Wei, B. Qian and H. Wang, "The helix scan strategy applied to the selective laser melting," International Journal of Advanced Manufacturing Technology, vol. 63, no. 5-8, pp. 631-640, 2012.
+	\end{itemize}
+	
+	\item \textbf{\emph{Cellular scanning strategy for selective laser melting: Generating reliable, optimized scanning paths and processing parameters} \\
+		S.Mohanty, JH.Hettel, \\
+		2015}
+	
+	\vspace{0cm}
+	
+	article précédant le "Multi-objective optimization of cellular scanning strategy in selective laser melting". Un peu pareil en ajoutant une étude probabiliste (ou statistique??) pour prendre en compte les incertitudes de la puissance du laser, de la taille de la "tache" couverte...
+	
+	
+	\item \textbf{\emph{Cellular Scanning Strategy for Selective Laser Melting: Capturing
+			Thermal Trends with a Low-Fidelity, Pseudo-Analytical Model} \\
+		S.Mohanty, JH.Hettel, \\
+		2014}
+	
+	\item \textbf{\emph{Reducing residual stresses and deformations in selective laser melting through multi-level multi-scale optimization of cellular scanning strategy} \\
+		S.Mohanty, JH.Hattel, \\
+		2016}
+	
+	\vspace{0cm}
+	
+	On veut prendre en compte la melting pool mais le coût de calcul est élevé. 
+	Utilisation d'un "calibrated, fast, multiscale thermal model, coupled with 3D element mechanical model" -> pour avoir accèes à toutes les informtations importantes en faisant baisser le coût de calcul : on modélise l'effet convectif de la melting pool par de la convection dans le solide pour calculer plus facilement. Pour le mélange thermique, mélange entre un modèle pseudo-analytique et des volumes finis 3D. Puis optim combinatoire car quelques stratégies à répartir sur des cellules.
+	
+	\vspace{0cm}
+	
+	Biblio en plus :
+	\begin{itemize}
+		\item A. Gusarov og P. M., »Residual stresses at laser surface remelting and additive manufacturing,« Physics Proceedia, pp. 248-254, 2011.
+		\item M. Zaeh og B. G., »Investigations on residual stresses and deformations in selective laser melting,« Production Engineering, årg. 4, nr. 1, pp. 35-45, 2010.
+		\item N. Contuzzi, S. Campanelli og A. Ludovico, »3D finitie element analysis in the selective laser melting process,« International Journal of Simulation Modelling, årg. 10, nr. 3, pp. 113-121, 2011.
+	\end{itemize}
+	\item \textbf{\emph{Temperature and stress analysis and simulation in fractal scanning-based laser sintering} \\
+		L.Ma,H.Bin, \\
+		2006}
+	
+	\vspace{0cm}
+	
+	Processing parameters : laser power, scaning pattern, scanning rate, scanning spacing. \\
+	Model : equationde la chaleur classique avec convection au bord (Fourier) (+FEM et schéma implicite pour le temps). On veut éviter : thermal stress et distortion. \\
+	Comparaison de deux stratégies : Zigzag et fractale. Expérimental et simulation : fractale est mieux.\\
+	Modelisation : on calcule d'abord la temperature (non linear transient thermal analysis). A partir de ce modèle on prend la température comme force volumique à chacun des noeuds et on calcule. On regarde ensuite les déplacements élastiques et les gradients thermiques au sein même d'un élément. 
+	
+	\vspace{0cm}
+	
+	Pour le modèle, biblio :
+	\begin{itemize}
+		\item Matsumoto M, Shiomi M, Osakada K, Abe F (2002) Finite element analysis of single layer forming on metallic powder bed in rapid prototyping by selective laser processing. Int J Mach Tools Manuf 42:61–67 
+
+		\item Dai K, Shaw L (2004) Thermal and mechanical finite element modeling of laser forming from metal and ceramic powders. Acta Mater 52:69–80
+		
+		\item Dai K, Li X-X, Shaw LL (2004) Comparisons between thermal modeling and experiments: effects of substrate preheating. Rapid Prototyping J 10(1):24–34
+	\end{itemize}
+		
+	
+	
+	
+	
+	\item \textbf{\emph{The optimal zigzag direction for filling a two-dimensional region} \\
+		V.T.Rajan and al., \\
+		2001}
+	
+	\vspace{0cm}
+	
+	Type de trajectoire choisi : on fait du parallel scanning avec lignes droites ou zig-zag. L'objectif est ensuite de trouver la bon découpage de la couche puis les bonnes directions pour chaque partir afin de créer des zig-zag les plus long possible recouvrant l'objet.
+	
+	
+	\item \textbf{\emph{Optimization of Scan Strategies in Selective Laser Melting of Aluminum Parts With Downfacing Areas} \\
+		R.Mertens and al., \\
+		2014}
+	
+	\vspace{0cm}
+	L'idée ici est de traiter correctement les "overhang" en adaptant la trajectoire de lasage en fonction. Se fait à moitié avec de l'expérimental et de la simulation pour trouver quels sont les bons paramètres de lasage pour les zones compliquées.
+	Distinction entre 2 familles de "trucs optimisables" :
+	\begin{itemize}
+		\item Scanning parameters / parameters set : laser power, scan speed, scan spacing, layer thickness
+		\item Scanning pattern 
+	\end{itemize}
+	
+	
+	
+	
+\end{itemize}
+
+\subsection{Autres Technologies}
+
+\begin{itemize}
+	\item \textbf{\emph{A practical path planning methodology for wire and arc additive manufacturing of thin-walled structures} \\
+		D.Ding and al., \\
+		2014}
+
+\end{itemize}
+\end{document}

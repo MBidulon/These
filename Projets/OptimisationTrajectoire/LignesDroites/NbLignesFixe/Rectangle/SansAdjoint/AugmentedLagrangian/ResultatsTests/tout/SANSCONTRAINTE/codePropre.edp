@@ -1,0 +1,474 @@
+/* PARAMETRES */
+
+
+	/* fichiers python et de stockage */
+	string pathPltVariables="/Users/mathilde/These/Projets/CodesPython/pltvariables.py";
+	string pathStockage="/Users/mathilde/These/Projets/OptimisationTrajectoire/LignesDroites/NbLignesFixe/Rectangle/SansAdjoint/AugmentedLagrangian/ResultatsTests";
+
+
+	/* PHYSIQUE DU PROBLEME */
+		/* Geometrie */
+			int n=40;
+			real xM0=0.; real xM1=2.; real yM0=0.; real yM1=1.;
+			
+		/* Autre */
+			real Vitesse=1.;
+			
+		/* Physique */
+			real Tini=30; real Tphase=500; real Tsup=750;
+			
+			real puissanceLaser=768000*10^4;
+			
+			real rhoPoudre=450*4000; real rhoSolide=450*8000;		
+			real lambdaPoudre=0.25; real lambdaSolide=15.; 
+			
+			real epCaracCoucheCarre=0.0001;	
+	
+	
+	/* BORNES DES VARIABLES A OPTIMISER */		
+//			real DeltaLMin=0.15;
+//			real DeltaLMax=1.;
+			real DeltaLMin=0.08;
+			real DeltaLMax=0.92;				
+	
+	
+	/* PARAMETRES D'OPTIMISATION */
+		/* Gestion fonction objectif et contrainte */
+			int coefNorme=2; //pour le calcul de la phase
+			
+			real tolContrainte=650;
+			
+			real Lag=0;
+			real muPen=0.25;
+			real lphase=1.;
+		
+		/* Optimisation */
+			int nbItB=30;
+			real tolDescente=100.;
+
+
+		/* INITIALISATION */
+			int nbLignes=7;
+			real[int] DeltaL(nbLignes);
+			DeltaL=[0.2,0.3,0.4,0.5,0.6,0.7,0.8];
+			
+			
+			real coef=0.5;
+
+	
+	/* STOCKAGE */
+			string path=pathStockage+"/tout";
+			exec("mkdir "+path);
+			path=path+"/SANSCONTRAINTE";
+			exec("mkdir "+path);
+			exec("cp codePropre.edp "+path+"/codePropre.edp");
+			
+			string pathXsolide=path+"/Xsolide";
+			exec("mkdir "+pathXsolide);
+				
+	verbosity=0;
+	int affichage =1; 
+
+
+
+load "medit" //pour freefem
+
+
+/* ----------- FONCTIONS UTILES ----------*/
+		
+		func real ALMInequality(real contrainte, real lag, real muPen){
+			if(contrainte-lag*muPen<=0){
+				return(-lag*contrainte+contrainte*contrainte/(2*muPen));
+			}
+			else{
+				return(-muPen/2*lag*lag);
+			}
+		}
+		
+		func real ALMInequalityPrime(real contrainte, real lag, real muPen){
+			if(contrainte-lag*muPen<=0){
+				return(-lag+contrainte/muPen);
+			}
+			else{
+				return(0);
+			}
+		}
+		
+		func real heaviside(real t, real epsilon){
+			real a;
+			if(t<-epsilon) {a=0;}
+			if(t>epsilon) {a=1;}
+			if(t>-epsilon && t<epsilon) {a=0.5*(1+t/epsilon+(1/pi)*sin(pi*t/epsilon));}		
+			return (a);
+		}
+		
+		func real heavisideP(real t, real epsilon){
+			real a;
+			if(t<-epsilon) {a=0;}
+			if(t>epsilon) {a=1;}
+			if(t>-epsilon && t<epsilon) {a=(1/(2*epsilon))*(1+cos(pi*t/epsilon));}		
+			return(a);
+		}
+		
+		macro savesolution (it,Th, var, stringvar, num){
+				if(num==0){
+					if(it==0){exec("mkdir "+stringvar);}
+					if(it<10) savesol(stringvar+"/00"+it+".sol",Th,var);
+					if(it>9 && it<100) savesol(stringvar+"/0"+it+".sol",Th,var);
+					if(it>99) savesol(stringvar+"/"+it+".sol",Th,var);
+				}
+				else{
+					if(it==0){exec("mkdir "+stringvar+num);}
+					if(it<10) savesol(stringvar+num+"/00"+it+".sol",Th,var);
+					if(it>9 && it<100) savesol(stringvar+num+"/0"+it+".sol",Th,var);
+					if(it>99) savesol(stringvar+num+"/"+it+".sol",Th,var);
+				}
+		}//EOM
+		
+		macro readSol(nomFichier, var,np){
+					string s;
+					real[int] loadsol(np);
+					{ifstream f(nomFichier);
+					 for(int i=0; i<8; i++) {
+					    f>>s;
+					  }
+					  for(int i=0; i<np; i++) {
+					    f>>loadsol[i];
+					  }
+					  var[] = loadsol;}
+		}//EOM
+		
+		
+		macro readTemp(it, var,stringvar,np,num){
+				if(num==0){
+					if(it<10) readSol(stringvar+"/00"+it+".sol",var,np);
+					if(it>9 && it<100) readSol(stringvar+"/0"+it+".sol",var,np);
+					if(it>99) readSol(stringvar+"/"+it+".sol",var,np);
+				}
+				else{
+					if(it<10) readSol(stringvar+num+"/00"+it+".sol",var,np);
+					if(it>9 && it<100) readSol(stringvar+num+"/0"+it+".sol",var,np);
+					if(it>99) readSol(stringvar+num+"/"+it+".sol",var,np);
+				}	
+					
+		}//EOM
+
+
+
+/* ------------ AVANT BOUCLE ----------*/
+/* Geometrie */	
+	/* maillage + el finis + longueur d'une ligne (conséquence du maillage) */
+			int[int] lab=[1,1,1,1];
+			mesh Sh=square(n,n,[xM0+(xM1-xM0)*x, yM0+(yM1-yM0)*y],label=lab);
+			fespace Vh1(Sh,P1); fespace Vh0(Sh,P0);
+			Vh1 aux1; Vh0 aux0;	
+			Vh0 meshSizes=hTriangle;		
+			real meshsiz=meshSizes[].max; //maximal length of edges
+			int np=Sh.nv; int nt=Sh.nt;
+			real longueurX=xM1-xM0; real longueurY=yM1-yM0;					
+			real epsilon=2*meshsiz;
+			
+/* Optimisation */
+			int itB=1; int acc=1;
+			
+/* Liés à la résolution de la chaleur et aux itérations de calcul */
+			real deltat=2*meshsiz*Vitesse;	
+			int Nl=int(longueurX/((deltat*Vitesse)))+2;
+			int NMit=Nl*nbLignes;
+	
+	
+/* -------------------------------- VARIABLES DE CALCUL --------------------------------- */
+real L, Lold, Jphase,Contrainte, Jphaseold, Contrainteold;
+real ordonnee, abscisse;
+Vh1 source, T, Ttilde, Ttildeold;
+Vh1 derSource, derTtilde, derTtildeold;
+Vh1 rho, lambda, XSolide;
+
+Vh1 auxNorme, Norme, Nmoins, auxSup;
+Vh1[int] auxPhase(nbLignes);
+
+real[int] derPhase(nbLignes);
+real[int] derSup(nbLignes);
+
+real[int] der(nbLignes);
+real[int] derold(nbLignes);
+real[int] deroldaux(nbLignes);
+
+real[int] DeltaLold(nbLignes);
+int indLigneActive=0;
+int indLigneActiveOld=0;
+
+real step=0;
+real den;
+//real coefStilde=(stildeMax-stildeMin)/10.;
+//real stepDeltaL, stepStilde;	
+	
+/* --------------------------- DEF DES PROBLEMES DE PHYSIQUE  --------------------------- */	 
+
+/* Chaleur */
+	
+		
+		
+	macro resolutionChaleur(Ttilde,Ttildeold,source,aux1){
+		problem chaleur(Ttilde,aux1)=
+					int2d(Sh)(rho*Ttilde*aux1)
+				   +int2d(Sh)(lambdaSolide/epCaracCoucheCarre*deltat*Ttilde*aux1)
+				   +int2d(Sh)(lambda*deltat*(dx(Ttilde)*dx(aux1)+dy(Ttilde)*dy(aux1)))
+				   -int2d(Sh)(deltat*source*aux1)
+				   -int2d(Sh)(rho*Ttildeold*aux1)
+				   +on(1,Ttilde=0);
+		chaleur;
+		Ttildeold=Ttilde;
+	}//EOM	
+			   		   		
+
+				
+	string svol;							 
+	
+	Lold=5.e+10;
+	
+	for (itB=1; itB<nbItB; itB=itB+1){
+		if(affichage==1){cout<<"itB="<<itB<<"; DeltaL="<<DeltaL<<endl;}
+			
+		/* Debut de la boucle, remise à 0 des quantités */
+				Jphase=0; Contrainte=0; L=0;
+				auxNorme=0; Norme=0; Nmoins=0; auxSup=0;
+				for(int itZ=0; itZ<nbLignes; itZ=itZ+1){
+					auxPhase[itZ]=0;
+					derPhase[itZ]=0;
+					derSup[itZ]=0;
+					der[itZ]=0;
+				}			
+
+		/* SIMULATION DU PROCESSUS */
+		
+			/* t=0 */
+				T=Tini; Ttilde=0; Ttildeold=0;
+				derTtilde=0; derTtildeold=0;	
+				XSolide=0;
+				
+				savesolution (0, Sh, Ttilde,"Ttilde",0);
+				savesolution (0, Sh, XSolide,"XSolide",0);
+				rho=rhoPoudre+(rhoSolide-rhoPoudre)*XSolide;
+				lambda=lambdaPoudre+(lambdaSolide-lambdaPoudre)*XSolide;
+				
+				source=0;
+				savesolution (0, Sh, source,"source",0);
+				
+				auxNorme=deltat*(abs(Ttilde+Tini))^(coefNorme);
+				auxSup=T+Tini-Tsup;
+				auxSup=max(auxSup,0.);
+				for(int itZ=0; itZ<nbLignes; itZ=itZ+1){
+					auxPhase[itZ]=deltat*((abs(Ttilde+Tini))^(coefNorme-1))*derTtilde;
+					derSup[itZ]=deltat*int2d(Sh)(2*auxSup*derTtilde);	
+				}	
+
+				Contrainte=int2d(Sh)(deltat*auxSup*auxSup);
+											
+			/* fin t=0 */
+			for(int it=1; it<=NMit; it=it+1){
+					
+					/* calcul de l'abscisse et de l'ordonnée liées à l'itération */	
+					abscisse=xM0+Vitesse*deltat*(it-1-int((it-1)/Nl)*Nl);
+					for (int ligne=1; ligne<=nbLignes; ligne=ligne+1){
+						if(it<=ligne*Nl && it>(ligne-1)*Nl){
+							ordonnee=yM0+DeltaL[ligne-1];
+							indLigneActive=ligne-1;
+						}
+					}
+										
+					/* calcul de la source de chaleur et des températures liées */					
+					source=puissanceLaser*exp(-100*((x-abscisse)^2+(y-ordonnee)^2));
+					resolutionChaleur(Ttilde,Ttildeold,source,aux1);
+					savesolution (it, Sh, source,"source",0);
+					T=Ttilde+Tini;
+					XSolide=XSolide+(T>Tphase)*(XSolide<0.5);
+					
+					savesolution (it, Sh, Ttilde,"Ttilde",0);
+					savesolution (it, Sh, XSolide,"Xsolide",0);
+					
+					plot(source,fill=1,value=1,WindowIndex=2);
+					plot(Ttilde, fill=1, value=1, WindowIndex=3);				
+					plot(XSolide, fill=1, value=1, WindowIndex=4);
+					
+					if(it==NMit){
+						if(itB<10){
+							plot(source,fill=1,value=1,WindowIndex=2, ps=path+"/source00"+itB);
+							plot(Ttilde, fill=1, value=1, WindowIndex=3, ps=path+"/temperature00"+itB);				
+							plot(XSolide, fill=1, WindowIndex=4, ps=pathXsolide+"/Xsolide00"+itB);
+						}
+						if(itB>=10 && itB<100){
+							plot(source,fill=1,value=1,WindowIndex=2, ps=path+"/source0"+itB);
+							plot(Ttilde, fill=1, value=1, WindowIndex=3, ps=path+"/temperature0"+itB);				
+							plot(XSolide, fill=1, WindowIndex=4, ps=pathXsolide+"/Xsolide0"+itB);
+						}
+						if(itB>=100){
+							plot(source,fill=1,value=1,WindowIndex=2, ps=path+"/source"+itB);
+							plot(Ttilde, fill=1, value=1, WindowIndex=3, ps=path+"/temperature"+itB);				
+							plot(XSolide, fill=1, WindowIndex=4, ps=pathXsolide+"/Xsolide"+itB);
+						}
+					}
+					
+					auxNorme=deltat*(abs(Ttilde+Tini))^(coefNorme);
+					auxSup=T+Tini-Tsup;
+					auxSup=max(auxSup,0.);
+				
+					/* calcul de la derivée de la source et de la température par rapport à DeltaL */
+					source=200*(y-ordonnee)*puissanceLaser*exp(-100*((x-abscisse)^2+(y-ordonnee)^2));
+					resolutionChaleur(derTtilde,derTtildeold,source,aux1);					
+					plot(derTtilde, fill=1, value=1, WindowIndex=5);
+					plot(source, fill=1, value=1, WindowIndex=6);
+					/* changement de phase brutal (on change les propriétés mécaniques au point) */														
+					rho=rhoPoudre+(rhoSolide-rhoPoudre)*XSolide;
+					lambda=lambdaPoudre+(lambdaSolide-lambdaPoudre)*XSolide;
+					
+					/* préparation pour le calcul de la norme et des dérivées pour la phase */
+					auxPhase[indLigneActive]=auxPhase[indLigneActive]+deltat*((abs(Ttilde+Tini))^(coefNorme-1))*derTtilde;
+					
+					/* préparation pour le calcul de la Contrainte et des dérivées liées à la contrainte */	
+					derSup[indLigneActive]=derSup[indLigneActive]+deltat*int2d(Sh)(2*auxSup*derTtilde);
+					
+					Contrainte=Contrainte+deltat*int2d(Sh)(auxSup*auxSup);
+					
+					/* préparation pour l'itération suivante */				
+					Ttilde=0; derTtilde=0;  T=0;	
+					if(indLigneActive!=indLigneActiveOld){
+						indLigneActiveOld=indLigneActive;
+						derTtildeold=0;
+					}
+				}
+				
+		/* FIN DE LA SIMULATION */				
+		
+		
+				
+				/* Calcul de la fonction objectif de phase et de la dérivée liée à la phase (pour la contrainte c'est fait lors de la simulation)*/
+				Norme=auxNorme^(1./coefNorme);
+				Nmoins=Norme-Tphase;
+				Nmoins=min(Nmoins,0);
+				if(itB<10){
+					plot(Nmoins, fill=1, value=1, WindowIndex=4, ps=path+"/Fusionne00"+itB);
+				}	
+				if(itB>=10 && itB <100){
+					plot(Nmoins, fill=1, value=1, WindowIndex=4, ps=path+"/Fusionne0"+itB);
+				}
+				if(itB>=100){
+					plot(Nmoins, fill=1, value=1, WindowIndex=4, ps=path+"/Fusionne"+itB);
+				}		
+				Jphase=int2d(Sh)(Nmoins*Nmoins);
+				for(int itZ=0; itZ<nbLignes; itZ=itZ+1){
+					derPhase[itZ]=int2d(Sh)(2*Nmoins*((Norme)^(1-coefNorme))*auxPhase[itZ]);
+				}
+								
+				/* calcul du lagrangien et des deux dérivées totales */
+				L=lphase*Jphase+ALMInequality(tolContrainte-Contrainte,Lag,muPen);
+				for(int itZ=0; itZ<nbLignes; itZ=itZ+1){
+					der[itZ]=lphase*derPhase[itZ]+ALMInequalityPrime(tolContrainte-Contrainte,Lag,muPen)*derSup[itZ];
+				}
+				
+				cout<<"der="<<der<<endl;
+						
+				if(affichage==1){
+					cout<<"      "<<"L="<<L<<"; Lold="<<Lold<<endl;
+					cout<<"      "<<"Jphase="<<Jphase<<"; Contrainte="<<Contrainte<<endl;
+				}
+				
+				if(itB==1){
+					{svol = path+"/valeurs.data";
+					ofstream f(svol);
+					f<<itB<<" "<<acc<<" "<<L<<" "<<Jphase<<" "<<Contrainte<<" "<<Lag<<" "<<coef<<endl;}
+					for(int itZ=1; itZ<=nbLignes; itZ=itZ+1){
+						{svol = path+"/resultats"+itZ+".data";
+						ofstream f(svol,append);
+						f<<itB<<" "<<DeltaL[itZ-1]<<endl;}
+					}
+				}
+				if(itB>1){
+					{svol = path+"/valeurs.data";
+					ofstream f(svol,append);
+					f<<itB<<" "<<acc<<" "<<L<<" "<<Jphase<<" "<<Contrainte<<" "<<Lag<<" "<<coef<<endl;}
+					for(int itZ=1; itZ<=nbLignes; itZ=itZ+1){
+						{svol = path+"/resultats"+itZ+".data";
+						ofstream f(svol,append);
+						f<<itB<<" "<<DeltaL[itZ-1]<<endl;}
+					}
+					
+				}
+				cout<<"L="<<L<<"; Lold="<<Lold<<endl;	
+					
+				/* si ça ne fonctionne pas */
+				if(L-Lold>=tolDescente && itB>1){		
+					/* on diminue le coefficient et donc le pas de descente */
+					coef=coef*0.2;
+					deroldaux=abs(derold);
+					step=coef/(deroldaux.max);
+					/* calcul des nouvelles variables (en utilisant les infos stockées)*/
+					for (int itZ=0; itZ<nbLignes; itZ=itZ+1){
+						DeltaL[itZ]=DeltaLold[itZ]-step*derold[itZ];
+						DeltaL[itZ]=min(DeltaL[itZ], DeltaLMax);
+						DeltaL[itZ]=max(DeltaL[itZ], DeltaLMin);
+					}
+						
+					if(affichage==1){
+						cout<<"     "<<"solution ratee"<<endl;
+						cout<<"     "<<"prochain aLignes="<<DeltaL<<endl;
+					}	
+					acc=0;										
+				}
+				
+				/* si c'est réussi */
+				if(L-Lold<=tolDescente){
+					
+					/* on update la variable qui fait qu'on ne part pas trop loin des variables précédentes*/
+					/* (normalisation pour ne garder ensuite que le signe de la dérivée et gérer complètement de combien on descend) */
+					
+					/* mise à jour du multiplicateur de Lagrange et nouveau calcul du Lagrangien */
+					Lag=Lag+(Contrainte-tolContrainte)/muPen;
+					Lag=max(Lag,0.);
+					L=lphase*Jphase+ALMInequality(-(Contrainte-tolContrainte), Lag, muPen);
+					
+					acc=1;
+	
+					/* update des variables */				
+					DeltaLold=DeltaL;
+					deroldaux=abs(der);
+					step=coef/(deroldaux.max);
+					for(int itZ=0; itZ<nbLignes; itZ=itZ+1){
+						DeltaL[itZ]=DeltaL[itZ]-step*der[itZ];
+						DeltaL[itZ]=min(DeltaL[itZ], DeltaLMax);
+						DeltaL[itZ]=max(DeltaL[itZ], DeltaLMin);
+					}
+					
+					if(affichage==1){
+						cout<<"     "<<"reussi"<<endl;
+						cout<<"     "<<"prochain aLignes="<<DeltaL<<"; stepDeltaL="<<coef<<endl;
+						cout<<"     "<<"Lag="<<Lag<<endl;
+					}
+					
+					/* mise en stock des variables et update du coefficient */
+					Lold=L;
+					Jphaseold=Jphase;
+					Contrainteold=Contrainte;
+					coef=coef*1.5;
+					derold=der;
+			}
+			
+			if(affichage==1){
+				cout<<endl;
+				cout<<"coef="<<coef<<endl;
+				cout<<endl;
+				cout<<endl;
+				cout<<endl;
+			}		
+
+			
+//			{svol = path+"/valeurs.data";
+//				ofstream f(svol,append);
+//				f<<itB<<" "<<acc<<" "<<Lold<<" "<<Jphaseold<<" "<<Contrainteold<<" "<<DeltaL<<" "<<stilde<<" "<<Lag<<endl;}
+		}
+//		
+exec("python /Users/mathilde/These/Projets/CodesPython/pltVariables.py -nomVar iteration acceptation Lagrangien Jphase Contrainte Lag coef -fichier "+path+"/valeurs.data -stockage "+path);
+for (int itZ=1; itZ<=nbLignes; itZ=itZ+1){
+	exec("python /Users/mathilde/These/Projets/CodesPython/pltVariables.py -nomVar iteration alpha"+itZ+" -fichier "+path+"/resultats"+itZ+".data -stockage "+path);
+}
+//			

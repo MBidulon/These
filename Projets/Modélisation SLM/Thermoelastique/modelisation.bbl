@@ -1,0 +1,26 @@
+\begin{thebibliography}{1}
+\expandafter\ifx\csname fonteauteurs\endcsname\relax
+\def\fonteauteurs{\scshape}\fi
+
+\bibitem{ForestMecaniquemilieuxcontinus2015}
+Samuel \bgroup\fonteauteurs\bgroup Forest\egroup\egroup{}, Michel
+  \bgroup\fonteauteurs\bgroup Amestoy\egroup\egroup{}, Gilles
+  \bgroup\fonteauteurs\bgroup Damamme\egroup\egroup{}, Serge
+  \bgroup\fonteauteurs\bgroup Kruch\egroup\egroup{}, Vincent
+  \bgroup\fonteauteurs\bgroup Maurel\egroup\egroup{} et Matthieu
+  \bgroup\fonteauteurs\bgroup Maziere\egroup\egroup{} :
+\newblock {\em M{\'e}canique Des Milieux Continus.}
+\newblock {Ecole des Mines de Paris}, 2015.
+
+\bibitem{SalenconMecaniquemilieuxcontinus2001}
+Jean \bgroup\fonteauteurs\bgroup Salen{\c c}on\egroup\egroup{} :
+\newblock {\em M{\'e}canique Des Milieux Continus: Tome 2:
+  Thermo{\'e}lasticit{\'e}}.
+\newblock 2001.
+
+\bibitem{SidoroffMecaniquemilieuxcontinus1980}
+Fran{\c c}ois \bgroup\fonteauteurs\bgroup Sidoroff\egroup\egroup{} :
+\newblock M{\'e}canique des milieux continus.
+\newblock page pp.166, 1980.
+
+\end{thebibliography}

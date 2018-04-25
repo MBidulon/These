@@ -1,0 +1,3 @@
+\beamer@endinputifotherversion {3.36pt}
+\beamer@sectionintoc {1}{Projet 1 : pour chaque couche, chaque composante connexe est un cercle}{3}{0}{1}
+\beamer@sectionintoc {2}{Projet 2 : trajectoires de lasage}{9}{0}{2}

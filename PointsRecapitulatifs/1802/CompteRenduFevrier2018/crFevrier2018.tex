@@ -1,0 +1,199 @@
+%----------------------------------------------------------------------------------------
+%	PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
+%----------------------------------------------------------------------------------------
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc} % to encode the document so that we can use more caracters (like Latin ones)
+\usepackage[T1]{fontenc} % to encode the document so that we can use more caracters (like Latin ones)
+\usepackage[english]{babel} % to write in English
+
+\usepackage{geometry} % the paper's format and marges
+\geometry{hmargin=2.3cm,vmargin=1.7cm}
+
+\usepackage{titling} % to put the title where I want
+
+% maths packages
+\usepackage{mathtools}
+\usepackage{amsmath,amsbsy}
+\usepackage{bm}
+\usepackage{bigints}
+\usepackage{stmaryrd}
+\usepackage{amsfonts}
+
+% graphs packages
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{wrapfig,epsfig}
+
+\usepackage{color}
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\newenvironment{proof}[1][Proof]{\begin{trivlist}
+		\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{definition}[1][Definition]{\begin{trivlist}
+		\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{example}[1][Example]{\begin{trivlist}
+		\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{remark}[1][Remark]{\begin{trivlist}
+		\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+
+\newcommand{\qed}{\nobreak \ifvmode \relax \else
+	\ifdim\lastskip<1.5em \hskip-\lastskip
+	\hskip1.5em plus0em minus0.5em \fi \nobreak
+	\vrule height0.75em width0.5em depth0.25em\fi}
+
+\usepackage{vmargin}
+\setmarginsrb{0.5cm}{0.5cm}{1cm}{1cm}{0cm}{0cm}{0cm}{0cm}
+
+\usepackage[final]{pdfpages}
+
+\usepackage{algorithm}
+\usepackage{algorithmic}
+%----------------------------------------------------------------------------------------
+%DOCUMENT
+%----------------------------------------------------------------------------------------
+
+\begin{document}
+
+\newcommand{\dive}{\textrm{div}}
+
+\begin{center}
+	\textbf{Compte rendu de la réunion du 13 Février 2018 (et des deux réunions qui ont suivi)}
+\end{center}
+
+\section{Projet 1  : contrainte de circularité des composantes connexes de chaque couche du solide}
+
+	\begin{itemize}
+		\item Ce qui a été fait :
+		\begin{itemize}
+			\item Contrainte simplifiée : chaque section doit ressembler à un cercle (et non pas chaque composante connexe) + code de cette contrainte
+			\item Optimisation de la compliance d'un solide avec contraintes de volume faible et de circularité des sections avec une gestion des contraintes par un multiplicateur de pénalisation fixe :
+			\begin{equation}
+			J=\textrm{Compliance}(\Omega)+l_{volume}\textrm{Volume}(\Omega)+l_{cercles}\textrm{Contrainte}(\Omega)
+			\end{equation}
+		\end{itemize}
+		
+		\item A faire :
+		\begin{itemize}
+			\item Modélisation et code de la contrainte liée au composantes connexes (passe par coder en Python la recherche des composantes connexes du solide)
+			\item Optimisation de la compliance sous contrainte de volume (volume=volumeCible) en utilisant un multiplicateur de Lagrange adapté à la contrainte (pas de Lagrangien augmenté pour le moment). Le résultat de cette optimisation servira d'initialisation pour l'optimisation de la compliance et du volume sous contrainte de circularité des barres constituant la pièce.
+			\item Optimisation de la compliance sous contrainte de volume et de circularité (avec des multiplicateurs de Lagrange adaptés)
+			\item Optimisation en contraignant des zones à être non optimisable ou en créant des "obstacles" (zones dans lequelles on ne peut pas mettre de solide).
+		\end{itemize}
+	\end{itemize}
+
+
+\section{Projet 2 : optimisation des paramètres de trajectoire}
+
+\begin{itemize}
+	\item Ce qui a été fait :
+	
+		\begin{itemize}
+			\item Modélisation physique : 
+			\begin{itemize}
+				\item Equation de la chaleur avec conditions aux limites de Dirichlet (et Fourier mais pour du 2D Dirichlet avec un terme de perte de chaleur volumique est plus pertinent).
+				
+				\begin{equation}
+				\left\{
+				\begin{array}{ll}
+				\rho\partial_t T-\textrm{div}(\lambda\nabla T)+\frac{\lambda_{solide}}{\textrm{ep}_{carac}^2}(T-T_{ini})=Q(t) & \in (0,t_F)\times \Omega \\
+				T=T_{ini} & \in (0,t_F)\times \partial\Omega \\
+				T(0)=T_{ini} & \in\Omega 
+				\end{array}
+				\right.
+				\end{equation}
+				
+				\item Modélisation du changement de phase avec une fonction objectif liée et modélisation d'une contrainte de température maximale :
+				\begin{equation}
+				\forall x\in\Omega,\qquad \Big[\Big(\|T\|_{\infty}-T_{fu}\Big)^-\Big]^2=0
+				\end{equation}
+				
+				On approxime la norme infinie par une norme $r$ et on a donc la fonction objectif suivante :
+				
+				\begin{equation}
+				J(\Delta L)=\int_{\Omega}\Bigg[\Bigg(\Big(\int_{0}^{t_F(\Delta L)}|T|^rdt\Big)^{\frac{1}{r}}-T_{fu}\Bigg)^-\Bigg]^2
+				\end{equation}
+				
+				Contrainte :
+				
+				\begin{equation}
+				\label{eq:contrainte}
+				C(\Delta L)=\int_{0}^{t_F(\Delta L)}\int_{\Omega}[(T-T_{sup})^+]^2dxdt-\textrm{tol}_{sup}
+				\end{equation} 
+				
+				
+			\end{itemize}
+			
+			\item Modélisation de différentes trajectoires : lignes droites, zig-zag
+			
+			\item Optimisation paramétrique de la distance entre les lignes (lignes equiréparties) afin de faire de fusionner toute la pièce sans que la température ne dépasse une température maximale.
+		\end{itemize}
+		
+		\item A faire :
+		\begin{itemize}
+			\item Continuer en évitant d'avoir trop de discontinuités.
+			\item A nombre de lignes fixées, on enlève la condition d'équirépartition entre les lignes et on optimise la distance entre les différentes lignes.
+		\end{itemize}
+		
+		\item Ce qui a été fait au LURPA : trajectoires adaptatives. En partant sur de la ligne droite, on adapte les lignes droites au fur et à mesure afin que les bains de fusion coincident. L'otpimisation des paramêtres de la trajectoire ne devrait a priori pas être redondant de ce projet car il n'a pas pour objectif de modifier les lignes droites mais la distance entre celles-ci. A voir...
+		
+\end{itemize}
+
+\section{Projet 3 : trajectoires heuristiques}
+
+Le but est de trouver des équations dont les isovaleurs des solutions pourraient faire de bonnes trajectoires de lasage. 
+
+
+
+\begin{itemize}
+	\item Objectif du projet : Add Up met la pression pour avoir des trajectoires. L'idée est de filer quelque chose qui pourrait être mieux que des offset (juste distance signée). 
+	\begin{itemize}
+		\item Idée : on cherche une équation dont les lignes de niveaux de la solution pourraient constituer une "bonne cartographie" de la pièce. On veut surtout éviter de simuler la fabrication de la pièce -> CRITERES GEOMETRIQUES
+		\item \textbf{Géométriquement, qu'est-ce qu'une bonne cartographie?}
+		\item Simuler pour avoir heuristiquement cette cartographie.
+		\item Optimiser pour obtenir l'équation qui donnerait une solution aux isovaleurs "optimales". Si le résultat renvoie l'équation liée à la distance signée (et donc des trajectoires en offset), on aura au moins prouvé que les offset sont des courbes biens (démonstration que je n'ai pas encore trouvée dans la littérature)
+		
+	\end{itemize}
+	\item Ce qui a été fait :
+	\begin{itemize}
+		\item Distance signée régularisée : pour éviter d'avoir des accumulations de lignes de niveau à certains endroits, on calcule les isovaleurs de la distance signée aux bords de la pièce. Afin d'avoir une trajectoire régulière, ce qui est mieux pour la rapidité du laser et la qualité de la pièce, on régularise en mixant cette distance avec l'équation de la chaleur.
+	\end{itemize}
+	
+	\item A faire : 
+	\begin{itemize}
+		\item tester d'autres équations et constituer un "livrable de résultats" :
+		\begin{itemize}
+			\item $-\textrm{div}(\lambda\nabla T)=\textrm{cst}\,\,\textrm{dans}\,\,\Omega$ + conditions de Fourier.
+			\item trouver les valeurs propres de l'équation de la chaleur : la première valeur propre peut être intéressante.
+			\item source non uniforme et adaptée à la structure (pénalisation selon la courbure...)
+			\item optimiser différents paramètres d'une équation (? pas prioritaire)
+		\end{itemize}
+		
+		\item traduire les contraintes de fabrication en contraintes géométriques sur les lignes de niveaux.
+		
+		\item définir un problème d'optimisation de la source, des conditions aux limites, des "phénomènes" intervenant dans l'équation et le "résoudre".
+	\end{itemize}
+	
+\end{itemize}
+
+
+
+\section{Projet 4 : Déterminer une trajectoire qui recouvre la pièce avec Hamilton-Jacobi (pas prioritaire)}
+\begin{itemize}
+	\item A faire : chercher de la biblio pour connaitre ce qui a été fait :
+	\begin{itemize}
+		\item Robotique
+		\item Trajectoires d'aviation
+		\item ...
+	\end{itemize}
+\end{itemize}
+
+\section{Projet 5 : Justifier mathématiquement la méthode Flash}
+La méthode Flash consiste à résoudre en un point l'équation de la chaleur avec un Dirac pour terme source. On fait ensuite de la convolution numérique pour avoir le résultat selon n'importe quel terme source (avec quelques approximations pour éviter de convoler sur des domaines trop grands).
+\end{document}

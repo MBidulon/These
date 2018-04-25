@@ -1,0 +1,49 @@
+This is BibTeX, Version 0.99d (TeX Live 2015)
+Capacity: max_strings=35307, hash_size=35307, hash_prime=30011
+The top-level auxiliary file: modelisation.aux
+The style file: plain-fr.bst
+Database file #1: Thermoelasticite.bib
+Warning--empty publisher in SalenconMecaniquemilieuxcontinus2001
+Warning--empty journal in SidoroffMecaniquemilieuxcontinus1980
+You've used 3 entries,
+            2238 wiz_defined-function locations,
+            553 strings with 5151 characters,
+and the built_in function-call counts, 1071 in all, are:
+= -- 104
+> -- 46
+< -- 1
++ -- 19
+- -- 16
+* -- 56
+:= -- 204
+add.period$ -- 6
+call.type$ -- 3
+change.case$ -- 15
+chr.to.int$ -- 0
+cite$ -- 5
+duplicate$ -- 48
+empty$ -- 74
+format.name$ -- 16
+if$ -- 229
+int.to.chr$ -- 0
+int.to.str$ -- 3
+missing$ -- 5
+newline$ -- 20
+num.names$ -- 6
+pop$ -- 29
+preamble$ -- 1
+purify$ -- 14
+quote$ -- 0
+skip$ -- 36
+stack$ -- 0
+substring$ -- 45
+swap$ -- 15
+text.length$ -- 1
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 8
+warning$ -- 2
+while$ -- 7
+width$ -- 4
+write$ -- 33
+(There were 2 warnings)

@@ -1,0 +1,87 @@
+%----------------------------------------------------------------------------------------
+%	PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
+%----------------------------------------------------------------------------------------
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc} % to encode the document so that we can use more caracters (like Latin ones)
+\usepackage[T1]{fontenc} % to encode the document so that we can use more caracters (like Latin ones)
+\usepackage[frenchb]{babel} % to write in English
+
+\usepackage{geometry} % the paper's format and marges
+\geometry{hmargin=2.3cm,vmargin=1.7cm}
+
+\usepackage{titling} % to put the title where I want
+
+% maths packages
+\usepackage{mathtools}
+\usepackage{amsmath,amsbsy}
+\usepackage{bm}
+\usepackage{bigints}
+\usepackage{stmaryrd}
+\usepackage{amsfonts}
+
+% graphs packages
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{wrapfig,epsfig}
+
+\usepackage{color}
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\newenvironment{proof}[1][Proof]{\begin{trivlist}
+		\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{definition}[1][Definition]{\begin{trivlist}
+		\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{example}[1][Example]{\begin{trivlist}
+		\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{remark}[1][Remark]{\begin{trivlist}
+		\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+
+\newcommand{\qed}{\nobreak \ifvmode \relax \else
+	\ifdim\lastskip<1.5em \hskip-\lastskip
+	\hskip1.5em plus0em minus0.5em \fi \nobreak
+	\vrule height0.75em width0.5em depth0.25em\fi}
+
+\usepackage{vmargin}
+\setmarginsrb{0.5cm}{0.5cm}{1cm}{1cm}{0cm}{0cm}{0cm}{0cm}
+
+\usepackage[final]{pdfpages}
+
+\usepackage{algorithm}
+\usepackage{algorithmic}
+%----------------------------------------------------------------------------------------
+%DOCUMENT
+%----------------------------------------------------------------------------------------
+
+\begin{document}
+
+
+\begin{center}
+	\textbf{Bibliographie}
+\end{center}
+
+
+
+\begin{itemize}
+	\item \textbf{\emph{Introduction to Shape Optimization : Shape Sensitivity Analysis} \\
+		J.Sokolowski, JP Zolesio, Springer Series in Computational Mathematics \\
+		1992} 
+	
+	\vspace{0cm}
+	
+	\item \textbf{\emph{Structure de la semi-derivée eulerienne dans le cas de domaines fissurés et quelques applications} \\
+			G. Fremiot , PhD Thesis of University Henri Poincare-Nancy 1 \\
+			2000
+			}
+	
+
+\end{itemize}
+	
+	
+\end{document}

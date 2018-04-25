@@ -55,6 +55,12 @@
 
 \usepackage{algorithm}
 \usepackage{algorithmic}
+
+\usepackage{tikz}
+\usepackage{multido}
+\usepackage{ifthen}
+\usepackage{pgffor}
+\usepackage{calc}
 %----------------------------------------------------------------------------------------
 %DOCUMENT
 %----------------------------------------------------------------------------------------
@@ -72,9 +78,13 @@
 \newcommand{\accUnecol}[1]{\left\{\begin{array}{l}#1\end{array}\right.}
 
 \newcommand{\stilde}{\tilde{s}}
-\begin{center}
-	\textbf{Optimisation de la largeur entre les droites avec contrainte de température - 21/02/2018}
-\end{center}
+
+
+\title{Optimisation de trajectoire : optimisation de la largeur entre les droites avec contrainte de température}
+\author{Mathilde Boissier}
+\date{Avril 2018}
+
+\maketitle
 
 
 \section*{Modèle et objectif}
@@ -107,17 +117,23 @@ Le solide et la poudre ont des valeurs différentes pour les parametres physique
 \end{equation}
 
 \subsection*{Trajectoire de la source}
-On considère une trajectoire en ligne droite comme sur le schéma ci-dessous (Figure XXX). On estime que la vitesse du laser est constante et égale à 1. On prend pour pas de temps $\delta t=2*\delta x$. La source est modélisée par une gaussienne centrée en un point (Figure XXX). 
+On considère une trajectoire en ligne droite comme sur le schéma ci-dessous (Figure \ref{fig:trajectoire}). On estime que la vitesse du laser est constante et égale à 1. On prend pour pas de temps $\delta t=2*\delta x$. La source est modélisée par une gaussienne centrée en un point (Figure \ref{fig:source}). 
 
 
-%\begin{figure}[H]
-%	\begin{minipage}{0.45\textwidth}
-%		\includegraphics[width=0.9\textwidth]{trajectoire}
-%	\end{minipage}
-%	\begin{minipage}{0.45\textwidth}
-%		\includegraphics[width=0.9\textwidth]{source}
-%	\end{minipage}
-%\end{figure}
+\begin{figure}[H]
+	\begin{minipage}{0.48\textwidth}
+		\label{fig:trajectoire}
+		\centering
+		\includegraphics[width=0.95\textwidth]{trajectoire}
+		\caption{Trajectoire de la source}
+	\end{minipage}
+	\begin{minipage}{0.48\textwidth}
+		\label{fig:source}
+		\centering
+		\includegraphics[width=0.8\textwidth]{source}
+		\caption{forme de la source}
+	\end{minipage}
+\end{figure}
 
 On modélise dans un premier temps le temps pour changer de ligne comme nul. De plus, on considère un temps final $t_F$, temps nécessaire pour effectuer toute la trajectoire comme constant. On estime que, que les lignes droites soient "dans le domaine de calcul ou non", la source va y passer. Ainsi, on décorrèle le temps final de la trajectoire de lasage ce qui permet de le considérer comme un paramètre fixe lors de l'optimisation (Figure XXX). \\
 Afin de modéliser l'arret de la source lorsqu'on sort de la zone de travail, on choisit de multiplier la source à une fonction de heaviside qui s'annule lorsque le laser sort de la zone de travail. Ainsi, la zone continue de parcourir "pour de faux" des lignes hors du domaine de travail sans perturber la thermique. Cette approche induit deux discontinuités différentes : 
@@ -137,7 +153,7 @@ On veut minimiser les endroits n'ayant pas subi de changement phase tout en ne d
 Les paramètre d'optimisation sont :
 \begin{itemize}
 	\item la distance entre deux lignes de parcours du laser $\Delta L$. On borne $\Delta L$ par 0 et par la largeur de la pièce ($\Delta L\in[0,L_{max}]$).
-	\item l'"abscisse curviligne" finale $\tilde{s}$ qui détermine l'arret de la source. On borne $\tilde{s}$ par 0 et par un nombre de ligne maximal (déterminé par le temps final constant $t_F$ choisi) multiplié par le temps de parcours d'une seule ligne. \Math{A vérifier quand même... ça ou le temps qu'on reste sur le rectangle? -> je dirais peu importe}
+	\item l'"abscisse curviligne" finale $\tilde{s}$ qui détermine l'arret de la source. On borne $\tilde{s}$ par 0 et par un nombre de ligne maximal (déterminé par le temps final constant $t_F$ choisi) multiplié par le temps de parcours d'une seule ligne.
 \end{itemize}
  
 \subsection*{Equation de la chaleur}
@@ -250,7 +266,9 @@ avec $\tilde T$ solution de l'Equation \ref{eq:ChaleurTilde}.
 
 \vspace{0cm}
 
-On va utiliser l'algorithme d'Uzawa pour gérer la contrainte. On pose $\textrm{lag}_{sup}$ le multiplicateur de Lagrange. On s'intéresse au problème modifié :
+\subsubsection*{Algorithme du Lagrangien}
+
+On va tout d'abord tester l'algorithme d'Uzawa pour gérer la contrainte. On pose $\textrm{lag}_{sup}$ le multiplicateur de Lagrange. On s'intéresse au problème modifié :
 
 \begin{equation}
 \min_{\begin{array}{l}
@@ -274,18 +292,31 @@ et on aura a chaque itération
 \right.
 \end{equation}
 
+\subsubsection*{Augmented Lagrangian Method (ALM)}
+
+Le deuxième algorithme testé est celui du Lagrangien augmenté (ALM dans la suite). (VOIR NOCEDAL XXX)
+
+On pose 
+\begin{equation}
+\psi(c,\lambda;\mu)=\left\{\begin{array}{ll}
+-\lambda*c+\frac{1}{2\mu}*c^2 & \textrm{si\,\,}c-\lambda*\mu\leq 0\\
+-\frac{\mu}{2}\lambda^2 & \textrm{sinon}
+\end{array}\right.
+\end{equation}
+
+On a alors, avec $\lambda$ paramètre à mettre à jour et $\mu$ paramètre de pénalisation fixé, une nouvelle fonction objectif du type :
+
+\begin{equation}
+\tilde{J}(\Delta L,\tilde{s})=\int_{\Omega}\Bigg[\Bigg(\Big(\int_{0}^{t_F}|\tilde{T}+T_{ini}|^rdt\Big)^{\frac{1}{r}}-T_{fu}\Bigg)^-\Bigg]^2+\psi\left(\textrm{tol}_{sup}-\Bigg[\int_{0}^{t_F}\int_{\Omega}[(\tilde{T}+T_{ini}-T_{sup})^+]^2dxdt\Bigg],\lambda;\mu\right)
+\end{equation}
 
 
 
 
-\section*{Traitement avec un adjoint pour la température}
+\subsection*{Calcul des dérivées : méthode sans adjoint pour la température}
 
 
-
-\section*{Sans adjoint pour la température}
-
-
-On décide de ne pas utiliser la méthode adjoint. On veut trouver la dérivée de $\tilde{J}$ par rapport à $\Delta L$ et $\tilde{s}$. On procède alors de la manière suivante :
+On veut trouver la dérivée de $\tilde{J}$ par rapport à $\Delta L$ et $\tilde{s}$. On procède alors de la manière suivante :
 
 \subsubsection*{Cas de $\Delta L$}
 
@@ -308,25 +339,42 @@ En dérivant l'équation vérifiée par $\tilde{T}$ en fonction de $\Delta L$, o
 
 et le problème variationnel associé ainsi que sa discrétisation en temps sont similaires à ceux liés à $\tilde{T}$.
 
-On a aussi accès à la dérivée de la fonction objectif par rapport à $\tilde{T}$ :
+On a aussi accès à la dérivée de la fonction objectif de changement de phase par rapport à $\tilde{T}$ :
 
 \begin{equation}
-\begin{array}{ll}
-\partial_{\tilde{T}}\tilde{j}&(\tilde{T})(\phi)= \textrm{lag}_{sup} \bigint_{0}^{t_F}\bigint_{\Omega}2[(\tilde{T}+T_{ini}-T_{sup})^+]\phi dxdt\\
-\\
-\,\, +&\bigint_{\Omega}2\Bigg(\Big(\int_{0}^{t_F}|\tilde{T}+T_{ini}|^rdt\Big)^{\frac{1}{r}}-T_{fu}\Bigg)^-\frac{1}{r}\Big(\int_{0}^{t_F}|\tilde{T}+T_{ini}|^rdt\Big)^{\frac{1}{r}-1}\int_{0}^{t_F}r|\tilde{T}+T_{ini}|^{r-1}\phi dtdx \\
-\end{array}
+\partial_{\tilde{T}}J(\tilde{T})(\phi)= \bigint_{\Omega}2\Bigg(\Big(\int_{0}^{t_F}|\tilde{T}+T_{ini}|^rdt\Big)^{\frac{1}{r}}-T_{fu}\Bigg)^-\frac{1}{r}\Big(\int_{0}^{t_F}|\tilde{T}+T_{ini}|^rdt\Big)^{\frac{1}{r}-1}\int_{0}^{t_F}r|\tilde{T}+T_{ini}|^{r-1}\phi dtdx 
 \end{equation}
 
-On obtient donc la dérivée de la fonction objectif :
+De même, on a accès à la dérivée de la contrainte par rapport à $\tilde{T}$ :
 
 \begin{equation}
-\begin{array}{ll}
-\partial_{\Delta L}\tilde{J}(\Delta L,\tilde{s})= & \textrm{lag}_{sup} \bigint_{0}^{t_F}\bigint_{\Omega}2[(\tilde{T}+T_{ini}-T_{sup})^+]\partial_{\Delta L}\tilde{T} dxdt\\
-\\
- \,&+\bigint_{\Omega}2\Bigg(\Big(\int_{0}^{t_F}|\tilde{T}+T_{ini}|^rdt\Big)^{\frac{1}{r}}-T_{fu}\Bigg)^-\Big(\int_{0}^{t_F}|\tilde{T}+T_{ini}|^rdt\Big)^{\frac{1}{r}-1}\int_{0}^{t_F}|\tilde{T}+T_{ini}|^{r-1}\partial_{\Delta L}\tilde{T} dtdx \\
-\end{array}
+\partial_{\tilde{T}}C(\tilde{T})(\phi)= \int_{0}^{t_F}\int_{\Omega}2[(\tilde{T}+T_{ini}-T_{sup})^+]\phi dxdt
 \end{equation}
+
+\begin{itemize}
+	\item Algorithme d'Uzawa : On obtient alors la dérivée de la fonction objectif par rapport à $\tilde{T}$:
+	
+	\begin{equation}
+	\partial_{\tilde{T}}\tilde{j}(\tilde{T})(\phi)= \partial_{\tilde{T}}J(\Delta L,\tilde{s})(\phi)+ \textrm{lag}_{sup} \partial_{\tilde{T}}C(\Delta L,\tilde{s})(\phi)
+	\end{equation}
+	et donc la dérivée pour $\tilde{J}$ par rapport à $\Delta L$ :
+	
+	\begin{equation}
+	\partial_{\Delta L}\tilde{J}= \partial_{\tilde{T}}J(\Delta L,\tilde{s})(\partial_{\Delta L}\tilde{T})+ \textrm{lag}_{sup} \partial_{\tilde{T}}C(\Delta L,\tilde{s})(\partial_{\Delta L}\tilde{T})
+	\end{equation}
+	
+	\item ALM : On obtient alors la dérivée de la fonction objectif par rapport à $\tilde{T}$:
+	
+	\begin{equation}
+	\partial_{\tilde{T}}\tilde{j}(\tilde{T})(\phi)= \partial_{\tilde{T}}J(\Delta L,\tilde{s})(\phi)+\partial_1\psi\left(\textrm{tol}_{sup}-C(\Delta L,\tilde{s}),\lambda;\mu\right) \partial_{\tilde{T}}C(\Delta L,\tilde{s})(\phi)
+	\end{equation}
+	et donc la dérivée pour $\tilde{J}$ par rapport à $\Delta L$ :
+	
+	\begin{equation}
+	\partial_{\Delta L}\tilde{J}= \partial_{\tilde{T}}J(\Delta L,\tilde{s})(\partial_{\Delta L}\tilde{T})+ \partial_1\psi\left(\textrm{tol}_{sup}-C(\Delta L,\tilde{s}),\lambda;\mu\right) \partial_{\tilde{T}}C(\Delta L,\tilde{s})(\partial_{\Delta L}\tilde{T})
+	\end{equation}
+\end{itemize}
+
 
 \subsubsection*{Cas de $\tilde{s}$}
 
@@ -349,27 +397,62 @@ En dérivant l'équation vérifiée par $\tilde{T}$ en fonction de $\Delta L$, o
 
 et le problème variationnel associé ainsi que sa discrétisation en temps sont similaires à ceux liés à $\tilde{T}$.
 
-On a aussi accès à la dérivée de la fonction objectif par rapport à $\tilde{T}$ :
+On a les mêmes dérivées par rapport à $\tilde{T}$ pour la fonction de changement de phase et la contrainte que dans le cas de $\Delta L$. 
+
+\begin{itemize}
+	\item Algorithme d'Uzawa : On obtient alors la dérivée de la fonction objectif par rapport à $\tilde{T}$:
+	
+	\begin{equation}
+	\partial_{\tilde{T}}\tilde{j}(\tilde{T})(\phi)= \partial_{\tilde{T}}J(\Delta L,\tilde{s})(\phi)+ \textrm{lag}_{sup} \partial_{\tilde{T}}C(\Delta L,\tilde{s})(\phi)
+	\end{equation}
+	et donc la dérivée pour $\tilde{J}$ par rapport à $\tilde{s}$ :
+	
+	\begin{equation}
+	\partial_{\tilde{s}}\tilde{J}= \partial_{\tilde{T}}J(\Delta L,\tilde{s})(\partial_{\tilde{s}}\tilde{T})+ \textrm{lag}_{sup} \partial_{\tilde{T}}C(\Delta L,\tilde{s})(\partial_{\tilde{s}}\tilde{T})
+	\end{equation}
+	
+	\item ALM : On obtient alors la dérivée de la fonction objectif par rapport à $\tilde{T}$:
+	
+	\begin{equation}
+	\partial_{\tilde{T}}\tilde{j}(\tilde{T})(\phi)= \partial_{\tilde{T}}J(\Delta L,\tilde{s})(\phi)+\partial_1\psi\left(\textrm{tol}_{sup}-C(\Delta L,\tilde{s}),\lambda;\mu\right) \partial_{\tilde{T}}C(\Delta L,\tilde{s})(\phi)
+	\end{equation}
+	et donc la dérivée pour $\tilde{J}$ par rapport à $\tilde{s}$ :
+	
+	\begin{equation}
+	\partial_{\tilde{s}}\tilde{J}= \partial_{\tilde{T}}J(\Delta L,\tilde{s})(\partial_{\tilde{s}}\tilde{T})+ \partial_1\psi\left(\textrm{tol}_{sup}-C(\Delta L,\tilde{s}),\lambda;\mu\right) \partial_{\tilde{T}}C(\Delta L,\tilde{s})(\partial_{\tilde{s}}\tilde{T})
+	\end{equation}
+\end{itemize}
+
+\subsection*{Discrétisation temporelle}
+
+On utilise un schéma implicite pour l'équation de la chaleur :
 
 \begin{equation}
-\begin{array}{ll}
-\partial_{\tilde{T}}\tilde{j}&(\tilde{T})(\phi)= \textrm{lag}_{sup} \bigint_{0}^{t_F}\bigint_{\Omega}2[(\tilde{T}+T_{ini}-T_{sup})^+]\phi dxdt\\
-\\
-\,\, +&\bigint_{\Omega}2\Bigg(\Big(\int_{0}^{t_F}|\tilde{T}+T_{ini}|^rdt\Big)^{\frac{1}{r}}-T_{fu}\Bigg)^-\frac{1}{r}\Big(\int_{0}^{t_F}|\tilde{T}+T_{ini}|^rdt\Big)^{\frac{1}{r}-1}\int_{0}^{t_F}r|\tilde{T}+T_{ini}|^{r-1}\phi dtdx \\
-\end{array}
+\accUnecol{
+	\intO \left(\rho+\frac{\lambda}{ep^2_{car}}\Delta t\right)\tilde{T}_{j+1}vdx+\intO \lambda\Delta t \nabla\tilde{T}_{j+1}\nabla vdx-\intO\left(Q_{j+1}\Delta t-\rho\tilde{T}_j\right)vdx=0 \\
+	\tilde{T}_0=T_{ini}
+}
 \end{equation}
-
-On obtient donc la dérivée de la fonction objectif :
 
 \begin{equation}
-\begin{array}{ll}
-\partial_{\tilde{s}}\tilde{J}(\Delta L,\tilde{s})= & \textrm{lag}_{sup} \bigint_{0}^{t_F}\bigint_{\Omega}2[(\tilde{T}+T_{ini}-T_{sup})^+]\partial_{\tilde{s}}\tilde{T} dxdt\\
-\\
-\,&+\bigint_{\Omega}2\Bigg(\Big(\int_{0}^{t_F}|\tilde{T}+T_{ini}|^rdt\Big)^{\frac{1}{r}}-T_{fu}\Bigg)^-\Big(\int_{0}^{t_F}|\tilde{T}+T_{ini}|^rdt\Big)^{\frac{1}{r}-1}\int_{0}^{t_F}|\tilde{T}+T_{ini}|^{r-1}\partial_{\tilde{s}}\tilde{T} dtdx \\
-\end{array}
+J(\Delta L,\tilde{s})=\bigint_{\Omega}\Bigg[\Bigg(\Big(\sum_{j=0}^{N_F}\Delta t|\tilde{T_j}+T_{ini}|^r\Big)^{\frac{1}{r}}-T_{fu}\Bigg)^-\Bigg]^2 
 \end{equation}
 
-\subsection*{Algorithme}
+
+\begin{equation}
+C(\Delta L,\tilde{s})=\sum_{j=0}^{N_F}\Delta t\int_{\Omega}[(\tilde{T_j}+T_{ini}-T_{sup})^+]^2dx-\textrm{tol}_{sup}
+\end{equation}
+
+\begin{equation}
+\partial_{\Delta L}J(\Delta L,\stilde)= \bigint_{\Omega}2\Bigg(\Big(\sum_{j=0}^{N_F}\left(\Delta t|\tilde{T_i}+T_{ini}|^r\right)\Big)^{\frac{1}{r}}-T_{fu}\Bigg)^-\frac{1}{r}\Big(\sum_{j=0}^{N_F}\left(\Delta t|\tilde{T_j}+T_{ini}|^r\right)\Big)^{\frac{1}{r}-1}\sum_{j=0}^{N_F}\Delta t\left(r|\tilde{T_j}+T_{ini}|^{r-1}\partial_{\Delta L} \tilde{T}\right)dx 
+\end{equation}
+
+\begin{equation}
+\partial_{\stilde}C(\Delta L\stilde)= \sum_{j=0}^{N_F}\Delta t\left(\int_{\Omega}2[(\tilde{T_j}+T_{ini}-T_{sup})^+]\partial_{\stilde} \tilde{T}\right)dx
+\end{equation}
+
+
+\section*{Algorithme}
 On pose 
 \begin{equation}
 \accUnecol{
@@ -399,14 +482,28 @@ A la fin de cette simulation, on calcule :
 	\item $J=\int_{\Omega}(NormeMoins^2dx)$
 	\item $derPhaseDeltaL=\int_{\Omega}2*NormeMoins*Norme^{1-r}*derPhaseDeltaLdx$
 	\item $derPhaseStilde=\int_{\Omega}2*NormeMoins*Norme^{1-r}*derPhaseStildedx$
-	\item $L=J+Lag*Contrainte$
-	\item $\partial_{\Delta L}L=derPhaseDeltaL+Lag*derSupDeltaL$
-	\item $\partial_{\tilde{s}}L=derPhaseStilde+Lag*derSupStilde$	
 \end{itemize}
+
+\begin{itemize}
+	\item Dans le cas de Uzawa : 
+		\begin{itemize}
+			\item $L=J+Lag*Contrainte$
+			\item $\partial_{\Delta L}L=derPhaseDeltaL+Lag*derSupDeltaL$
+			\item $\partial_{\tilde{s}}L=derPhaseStilde+Lag*derSupStilde$	
+		\end{itemize}
+		
+	\item Dans le cas de ALM :	
+		\begin{itemize}
+			\item $L=J+\psi\left(\textrm{tol}_{sup}-Contrainte,Lag,\mu\right)$
+			\item $\partial_{\Delta L}L=derPhaseDeltaL+\partial_1\psi\left(\textrm{tol}_{sup}-Contrainte,Lag,\mu\right)derSupDeltaL$
+			\item $\partial_{\tilde{s}}L=derPhaseStilde+\partial_1\psi\left(\textrm{tol}_{sup}-Contrainte,Lag,\mu\right)derSupStilde$	
+		\end{itemize}
+\end{itemize}	
+
 
 
 \subsubsection*{Pas de descente}
-On consière un coefficient pour chaque variable ($coef_{\Delta L},\,coef_{\tilde{s}}$). Il est initialisé à la l'écart maximum que peuvent prendre les valeurs divisé par 10 :
+On consière un coefficient pour chaque variable ($coef_{\Delta L},\,coef_{\tilde{s}}$). Il est initialisé à l'écart maximum que peuvent prendre les valeurs divisé par 10 :
 \begin{equation}
 coef_{Delta L}=\left(\Delta L _{max}-\Delta L_{min}\right)/10
 \end{equation}. 
@@ -417,519 +514,967 @@ A chaque itération, le pas de descente est calculé de manière à ce que la di
 
 Ce coefficient est divisé par 5 lorque l'itération est ratée et multiplié par 1.5 lorsque l'itération est réussie.
 
-\subsection*{Tests et résultats}
+\section*{Tests et résultats}
 
+\subsection*{Algorithme d'Uzawa}
 \subsubsection*{Phase seule}
-Le premier test fait est l'optimisation de la phase seule avec pour objectif la diminution de $\Delta L$ et l'augmentation de $\stilde$. On prend ici :
-\begin{itemize}
-	\item $\Delta L_{min}=0.2$ et $\Delta L_{max}=1$
-	\item $\stilde_{min}=1.1*\textrm{longueurLigne}$ et $\stilde_{max}=\textrm{nbMaxLignes}*\textrm{longueurLigne}$
-\end{itemize}
-Deux initialisations sont testées :
-\begin{itemize}
-	\item initialisation 1 : $\Delta L=0.6$ et $\stilde=10$
-	\item initialisation 2 : $\Delta L=0.2$ et $\stilde=\stilde_{min}$
-\end{itemize}
-
-On a les résultats suivant :
-
-\begin{itemize}
-	\item Initialisation 1 :
-	
-	\begin{figure}[H]
-		\begin{minipage}{0.33\textwidth}
-			\centering
-			\includegraphics[width=0.8\textwidth]{phase/Ini1/Lagrangien.png}
-			\caption{Lagrangien $L$}
-		\end{minipage}
-		\begin{minipage}{0.33\textwidth}
-			\centering
-			\includegraphics[width=0.8\textwidth]{phase/Ini1/Jphase.png}
-			\caption{Fonction objectif liée à la phase}
-		\end{minipage}
-		\begin{minipage}{0.33\textwidth}
-			\centering
-			\includegraphics[width=0.8\textwidth]{phase/Ini1/Contrainte.png}
-			\caption{Contrainte}
-		\end{minipage}
-	\end{figure}
-	
-	\begin{figure}[H]
-		\begin{minipage}{0.45\textwidth}
-			\centering
-			\includegraphics[width=0.6\textwidth]{phase/Ini1/DeltaL.png}
-			\caption{Evolution de $\Delta L$}
-		\end{minipage}
-		\begin{minipage}{0.45\textwidth}
-			\centering
-			\includegraphics[width=0.6\textwidth]{phase/Ini1/stilde.png}
-			\caption{Evolution de $\stilde$}
-		\end{minipage}
-	\end{figure}
-	
-	\item Initialisation 2 :
-	
-	\begin{figure}[H]
-		\begin{minipage}{0.33\textwidth}
-			\centering
-			\includegraphics[width=0.8\textwidth]{phase/Ini2/Lagrangien.png}
-			\caption{Lagrangien $L$}
-		\end{minipage}
-		\begin{minipage}{0.33\textwidth}
-			\centering
-			\includegraphics[width=0.8\textwidth]{phase/Ini2/Jphase.png}
-			\caption{Fonction objectif liée à la phase}
-		\end{minipage}
-		\begin{minipage}{0.33\textwidth}
-			\centering
-			\includegraphics[width=0.8\textwidth]{phase/Ini2/Contrainte.png}
-			\caption{Contrainte}
-		\end{minipage}
-	\end{figure}
-	
-	\begin{figure}[H]
-		\begin{minipage}{0.45\textwidth}
-			\centering
-			\includegraphics[width=0.6\textwidth]{phase/Ini2/DeltaL.png}
-			\caption{Evolution de $\Delta L$}
-		\end{minipage}
-		\begin{minipage}{0.45\textwidth}
-			\centering
-			\includegraphics[width=0.6\textwidth]{phase/Ini2/stilde.png}
-			\caption{Evolution de $\stilde$}
-		\end{minipage}
-	\end{figure}
-	
-\end{itemize}
-
+%Le premier test fait est l'optimisation de la phase seule avec pour objectif la diminution de $\Delta L$ et l'augmentation de $\stilde$. On prend ici :
+%\begin{itemize}
+%	\item $\Delta L_{min}=0.2$ et $\Delta L_{max}=1$
+%	\item $\stilde_{min}=1.1*\textrm{longueurLigne}$ et $\stilde_{max}=\textrm{nbMaxLignes}*\textrm{longueurLigne}$
+%\end{itemize}
+%Deux initialisations sont testées :
+%\begin{itemize}
+%	\item initialisation 1 : $\Delta L=0.6$ et $\stilde=10$
+%	\item initialisation 2 : $\Delta L=0.2$ et $\stilde=\stilde_{min}$
+%\end{itemize}
+%
+%On a les résultats suivant :
+%
+%\begin{itemize}
+%	\item Initialisation 1 :
+%	
+%	\begin{figure}[H]
+%		\begin{minipage}{0.33\textwidth}
+%			\centering
+%			\includegraphics[width=0.8\textwidth]{phase/Ini1/Lagrangien.png}
+%			\caption{Lagrangien $L$}
+%		\end{minipage}
+%		\begin{minipage}{0.33\textwidth}
+%			\centering
+%			\includegraphics[width=0.8\textwidth]{phase/Ini1/Jphase.png}
+%			\caption{Fonction objectif liée à la phase}
+%		\end{minipage}
+%		\begin{minipage}{0.33\textwidth}
+%			\centering
+%			\includegraphics[width=0.8\textwidth]{phase/Ini1/Contrainte.png}
+%			\caption{Contrainte}
+%		\end{minipage}
+%	\end{figure}
+%	
+%	\begin{figure}[H]
+%		\begin{minipage}{0.45\textwidth}
+%			\centering
+%			\includegraphics[width=0.6\textwidth]{phase/Ini1/DeltaL.png}
+%			\caption{Evolution de $\Delta L$}
+%		\end{minipage}
+%		\begin{minipage}{0.45\textwidth}
+%			\centering
+%			\includegraphics[width=0.6\textwidth]{phase/Ini1/stilde.png}
+%			\caption{Evolution de $\stilde$}
+%		\end{minipage}
+%	\end{figure}
+%	
+%	\item Initialisation 2 :
+%	
+%	\begin{figure}[H]
+%		\begin{minipage}{0.33\textwidth}
+%			\centering
+%			\includegraphics[width=0.8\textwidth]{phase/Ini2/Lagrangien.png}
+%			\caption{Lagrangien $L$}
+%		\end{minipage}
+%		\begin{minipage}{0.33\textwidth}
+%			\centering
+%			\includegraphics[width=0.8\textwidth]{phase/Ini2/Jphase.png}
+%			\caption{Fonction objectif liée à la phase}
+%		\end{minipage}
+%		\begin{minipage}{0.33\textwidth}
+%			\centering
+%			\includegraphics[width=0.8\textwidth]{phase/Ini2/Contrainte.png}
+%			\caption{Contrainte}
+%		\end{minipage}
+%	\end{figure}
+%	
+%	\begin{figure}[H]
+%		\begin{minipage}{0.45\textwidth}
+%			\centering
+%			\includegraphics[width=0.6\textwidth]{phase/Ini2/DeltaL.png}
+%			\caption{Evolution de $\Delta L$}
+%		\end{minipage}
+%		\begin{minipage}{0.45\textwidth}
+%			\centering
+%			\includegraphics[width=0.6\textwidth]{phase/Ini2/stilde.png}
+%			\caption{Evolution de $\stilde$}
+%		\end{minipage}
+%	\end{figure}
+%	
+%\end{itemize}
 
 \subsubsection*{Contrainte seule}
-Le premier test fait est l'optimisation de la contrainte seule avec pour objectif l'augmentation de $\Delta L$ et la diminution de $\stilde$. On prend ici :
-\begin{itemize}
-	\item $\Delta L_{min}=0.2$ et $\Delta L_{max}=1$
-	\item $\stilde_{min}=1.1*\textrm{longueurLigne}$ et $\stilde_{max}=\textrm{nbMaxLignes}*\textrm{longueurLigne}$
-\end{itemize}
-Deux initialisations sont testées :
-\begin{itemize}
-	\item initialisation 1 : $\Delta L=0.6$ et $\stilde=10$
-	\item initialisation 2 : $\Delta L=0.2$ et $\stilde=\stilde_{min}$
-\end{itemize}
-
-On a les résultats suivant :
-
-\begin{itemize}
-	\item Initialisation 1 :
-	
-	\begin{figure}[H]
-		\begin{minipage}{0.33\textwidth}
-			\centering
-			\includegraphics[width=0.8\textwidth]{tsup/Ini1/Lagrangien.png}
-			\caption{Lagrangien $L$}
-		\end{minipage}
-		\begin{minipage}{0.33\textwidth}
-			\centering
-			\includegraphics[width=0.8\textwidth]{tsup/Ini1/Jphase.png}
-			\caption{Fonction objectif liée à la phase}
-		\end{minipage}
-		\begin{minipage}{0.33\textwidth}
-			\centering
-			\includegraphics[width=0.8\textwidth]{tsup/Ini1/Contrainte.png}
-			\caption{Contrainte}
-		\end{minipage}
-	\end{figure}
-	
-	\begin{figure}[H]
-		\begin{minipage}{0.45\textwidth}
-			\centering
-			\includegraphics[width=0.6\textwidth]{tsup/Ini1/DeltaL.png}
-			\caption{Evolution de $\Delta L$}
-		\end{minipage}
-		\begin{minipage}{0.45\textwidth}
-			\centering
-			\includegraphics[width=0.6\textwidth]{tsup/Ini1/stilde.png}
-			\caption{Evolution de $\stilde$}
-		\end{minipage}
-	\end{figure}
-	
-	\item Initialisation 2 :
-	
-	\begin{figure}[H]
-		\begin{minipage}{0.33\textwidth}
-			\centering
-			\includegraphics[width=0.8\textwidth]{tsup/Ini2/Lagrangien.png}
-			\caption{Lagrangien $L$}
-		\end{minipage}
-		\begin{minipage}{0.33\textwidth}
-			\centering
-			\includegraphics[width=0.8\textwidth]{tsup/Ini2/Jphase.png}
-			\caption{Fonction objectif liée à la phase}
-		\end{minipage}
-		\begin{minipage}{0.33\textwidth}
-			\centering
-			\includegraphics[width=0.8\textwidth]{tsup/Ini2/Contrainte.png}
-			\caption{Contrainte}
-		\end{minipage}
-	\end{figure}
-	
-	\begin{figure}[H]
-		\begin{minipage}{0.45\textwidth}
-			\centering
-			\includegraphics[width=0.6\textwidth]{tsup/Ini2/DeltaL.png}
-			\caption{Evolution de $\Delta L$}
-		\end{minipage}
-		\begin{minipage}{0.45\textwidth}
-			\centering
-			\includegraphics[width=0.6\textwidth]{tsup/Ini2/stilde.png}
-			\caption{Evolution de $\stilde$}
-		\end{minipage}
-	\end{figure}
-	
-\end{itemize}
+%Le premier test fait est l'optimisation de la contrainte seule avec pour objectif l'augmentation de $\Delta L$ et la diminution de $\stilde$. On prend ici :
+%\begin{itemize}
+%	\item $\Delta L_{min}=0.2$ et $\Delta L_{max}=1$
+%	\item $\stilde_{min}=1.1*\textrm{longueurLigne}$ et $\stilde_{max}=\textrm{nbMaxLignes}*\textrm{longueurLigne}$
+%\end{itemize}
+%Deux initialisations sont testées :
+%\begin{itemize}
+%	\item initialisation 1 : $\Delta L=0.6$ et $\stilde=10$
+%	\item initialisation 2 : $\Delta L=0.2$ et $\stilde=\stilde_{min}$
+%\end{itemize}
+%
+%On a les résultats suivant :
+%
+%\begin{itemize}
+%	\item Initialisation 1 :
+%	
+%	\begin{figure}[H]
+%		\begin{minipage}{0.33\textwidth}
+%			\centering
+%			\includegraphics[width=0.8\textwidth]{tsup/Ini1/Lagrangien.png}
+%			\caption{Lagrangien $L$}
+%		\end{minipage}
+%		\begin{minipage}{0.33\textwidth}
+%			\centering
+%			\includegraphics[width=0.8\textwidth]{tsup/Ini1/Jphase.png}
+%			\caption{Fonction objectif liée à la phase}
+%		\end{minipage}
+%		\begin{minipage}{0.33\textwidth}
+%			\centering
+%			\includegraphics[width=0.8\textwidth]{tsup/Ini1/Contrainte.png}
+%			\caption{Contrainte}
+%		\end{minipage}
+%	\end{figure}
+%	
+%	\begin{figure}[H]
+%		\begin{minipage}{0.45\textwidth}
+%			\centering
+%			\includegraphics[width=0.6\textwidth]{tsup/Ini1/DeltaL.png}
+%			\caption{Evolution de $\Delta L$}
+%		\end{minipage}
+%		\begin{minipage}{0.45\textwidth}
+%			\centering
+%			\includegraphics[width=0.6\textwidth]{tsup/Ini1/stilde.png}
+%			\caption{Evolution de $\stilde$}
+%		\end{minipage}
+%	\end{figure}
+%	
+%	\item Initialisation 2 :
+%	
+%	\begin{figure}[H]
+%		\begin{minipage}{0.33\textwidth}
+%			\centering
+%			\includegraphics[width=0.8\textwidth]{tsup/Ini2/Lagrangien.png}
+%			\caption{Lagrangien $L$}
+%		\end{minipage}
+%		\begin{minipage}{0.33\textwidth}
+%			\centering
+%			\includegraphics[width=0.8\textwidth]{tsup/Ini2/Jphase.png}
+%			\caption{Fonction objectif liée à la phase}
+%		\end{minipage}
+%		\begin{minipage}{0.33\textwidth}
+%			\centering
+%			\includegraphics[width=0.8\textwidth]{tsup/Ini2/Contrainte.png}
+%			\caption{Contrainte}
+%		\end{minipage}
+%	\end{figure}
+%	
+%	\begin{figure}[H]
+%		\begin{minipage}{0.45\textwidth}
+%			\centering
+%			\includegraphics[width=0.6\textwidth]{tsup/Ini2/DeltaL.png}
+%			\caption{Evolution de $\Delta L$}
+%		\end{minipage}
+%		\begin{minipage}{0.45\textwidth}
+%			\centering
+%			\includegraphics[width=0.6\textwidth]{tsup/Ini2/stilde.png}
+%			\caption{Evolution de $\stilde$}
+%		\end{minipage}
+%	\end{figure}
+%	
+%\end{itemize}
 
 
 
 \subsubsection*{Objectif et contrainte}
-On utilise maintenant un Lagrangien pour traiter la contrainte et différents pas pour mettre à jour le multiplicateur sont essayés.
+Il est difficile d'obtenir des résultats propres car les dérivées en jeu ont des valeurs assez diverses et il difficile de trouver un pas de descente correct pour faire fonctionner l'algorithme d'Uzawa. Les essais ont donc été abandonnés ici au profit du Lagrangien Augmenté.
+
+
+\subsection*{Augmented Lagrangian Method}
+\newcommand\FichierALM{/Users/mathilde/These/Projets/OptimisationTrajectoire/LignesDroites/NbLignesNonFixe/LignesEquidistantes/deuxVariables/SansAdjoint/Rectangle/AugmentedLagrangian/ResultatsTests/Tout/}
+
+Les tests sont donc faits pour une optimisation simultanée de l'objectif de changement de phase et de réduction de la contrainte.
+
+\paragraph{Initialisation 1 :}
 
 \begin{itemize}
-	\item $step_{lag}=0.5$ et $lag_{ini}=0$ 
-	
-	
-	Deux initialisations sont testées :
-	\begin{itemize}
-		\item initialisation 1 : $\Delta L=0.6$ et $\stilde=10$
-		\item initialisation 2 : $\Delta L=0.2$ et $\stilde=\stilde_{min}$
-	\end{itemize}
-	On a dans les deux cas une valeur finale de $\Delta L$ de 0.306678. 
-	
-	\vspace{0cm}
-	
-	On a les résultats suivant :
-	
-	\begin{itemize}
-		\item Initialisation 1 :
-		
-		\begin{figure}[H]
-			\begin{minipage}{0.33\textwidth}
-				\centering
-				\includegraphics[width=0.8\textwidth]{total/step1/Ini1/Lagrangien.png}
-				\caption{Lagrangien $L$}
-			\end{minipage}
-			\begin{minipage}{0.33\textwidth}
-				\centering
-				\includegraphics[width=0.8\textwidth]{total/step1/Ini1/Jphase.png}
-				\caption{Fonction objectif liée à la phase}
-			\end{minipage}
-			\begin{minipage}{0.33\textwidth}
-				\centering
-				\includegraphics[width=0.8\textwidth]{total/step1/Ini1/Contrainte.png}
-				\caption{Contrainte}
-			\end{minipage}
-		\end{figure}
-		
-		\begin{figure}[H]
-			\begin{minipage}{0.45\textwidth}
-				\centering
-				\includegraphics[width=0.6\textwidth]{total/step1/Ini1/DeltaL.png}
-				\caption{Evolution de $\Delta L$}
-			\end{minipage}
-			\begin{minipage}{0.45\textwidth}
-				\centering
-				\includegraphics[width=0.6\textwidth]{total/step1/Ini1/stilde.png}
-				\caption{Evolution de $\stilde$}
-			\end{minipage}
-		\end{figure}
-		
-		\item Initialisation 2 :
-		
-		\begin{figure}[H]
-			\begin{minipage}{0.33\textwidth}
-				\centering
-				\includegraphics[width=0.8\textwidth]{total/step1/Ini2/Lagrangien.png}
-				\caption{Lagrangien $L$}
-			\end{minipage}
-			\begin{minipage}{0.33\textwidth}
-				\centering
-				\includegraphics[width=0.8\textwidth]{total/step1/Ini2/Jphase.png}
-				\caption{Fonction objectif liée à la phase}
-			\end{minipage}
-			\begin{minipage}{0.33\textwidth}
-				\centering
-				\includegraphics[width=0.8\textwidth]{total/step1/Ini2/Contrainte.png}
-				\caption{Contrainte}
-			\end{minipage}
-		\end{figure}
-		
-		\begin{figure}[H]
-			\begin{minipage}{0.45\textwidth}
-				\centering
-				\includegraphics[width=0.6\textwidth]{total/step1/Ini2/DeltaL.png}
-				\caption{Evolution de $\Delta L$}
-			\end{minipage}
-			\begin{minipage}{0.45\textwidth}
-				\centering
-				\includegraphics[width=0.6\textwidth]{total/step1/Ini2/stilde.png}
-				\caption{Evolution de $\stilde$}
-			\end{minipage}
-		\end{figure}
-		
-	\end{itemize}
-	
-	
-	\item $step_{lag}=5.$ et $lag_{ini}=0$ 
-	
-	
-	Deux initialisations sont testées :
-	\begin{itemize}
-		\item initialisation 1 : $\Delta L=0.6$ et $\stilde=10$
-		\item initialisation 2 : $\Delta L=0.2$ et $\stilde=\stilde_{min}$
-	\end{itemize}
-	On a dans les deux cas une valeur finale de $\Delta L$ de 0.306678. 
-	
-	\vspace{0cm}
-	
-	On a les résultats suivant :
-	
-	\begin{itemize}
-		\item Initialisation 1 :
-		
-		\begin{figure}[H]
-			\begin{minipage}{0.33\textwidth}
-				\centering
-				\includegraphics[width=0.8\textwidth]{total/step2/Ini1/Lagrangien.png}
-				\caption{Lagrangien $L$}
-			\end{minipage}
-			\begin{minipage}{0.33\textwidth}
-				\centering
-				\includegraphics[width=0.8\textwidth]{total/step2/Ini1/Jphase.png}
-				\caption{Fonction objectif liée à la phase}
-			\end{minipage}
-			\begin{minipage}{0.33\textwidth}
-				\centering
-				\includegraphics[width=0.8\textwidth]{total/step2/Ini1/Contrainte.png}
-				\caption{Contrainte}
-			\end{minipage}
-		\end{figure}
-		
-		\begin{figure}[H]
-			\begin{minipage}{0.45\textwidth}
-				\centering
-				\includegraphics[width=0.6\textwidth]{total/step2/Ini1/DeltaL.png}
-				\caption{Evolution de $\Delta L$}
-			\end{minipage}
-			\begin{minipage}{0.45\textwidth}
-				\centering
-				\includegraphics[width=0.6\textwidth]{total/step2/Ini1/stilde.png}
-				\caption{Evolution de $\stilde$}
-			\end{minipage}
-		\end{figure}
-		
-		\item Initialisation 2 :
-		
-		\begin{figure}[H]
-			\begin{minipage}{0.33\textwidth}
-				\centering
-				\includegraphics[width=0.8\textwidth]{total/step2/Ini2/Lagrangien.png}
-				\caption{Lagrangien $L$}
-			\end{minipage}
-			\begin{minipage}{0.33\textwidth}
-				\centering
-				\includegraphics[width=0.8\textwidth]{total/step2/Ini2/Jphase.png}
-				\caption{Fonction objectif liée à la phase}
-			\end{minipage}
-			\begin{minipage}{0.33\textwidth}
-				\centering
-				\includegraphics[width=0.8\textwidth]{total/step2/Ini2/Contrainte.png}
-				\caption{Contrainte}
-			\end{minipage}
-		\end{figure}
-		
-		\begin{figure}[H]
-			\begin{minipage}{0.45\textwidth}
-				\centering
-				\includegraphics[width=0.6\textwidth]{total/step2/Ini2/DeltaL.png}
-				\caption{Evolution de $\Delta L$}
-			\end{minipage}
-			\begin{minipage}{0.45\textwidth}
-				\centering
-				\includegraphics[width=0.6\textwidth]{total/step2/Ini2/stilde.png}
-				\caption{Evolution de $\stilde$}
-			\end{minipage}
-		\end{figure}
-		
-	\end{itemize}
+	\item valeurs initiales : $\Delta L=0.6$ et $\stilde=10$
+	\item parametres d'optimisation : $Lag_{ini}=0$; $\mu=10$; $\textrm{tol}_{sup}=650$
+	\item parametres physiques : $Tini=30;\,Tphase=500;\,Tsup=750$ et $epCaracCoucheCarre=0.0001;$
 \end{itemize}
 
-On obtient dans les quatre cas le résultat suivant (on représente ici les parties fusionnées, ce qui n'est pas la fonction objectif qui elle représente la norme $L^2$ de $T>T_{fu}$ alors qu'ici c'est la norme infinie). Dans tous les cas, $\tilde{s}$ permet de couvrir tout le rectangle.
+Le résultat final est :
+\begin{itemize}
+	\item $\Delta L= 0.26235 ;\quad \stilde=15.5214$
+	\item $J_{phase}=9391.72;\quad C= 663.527$
+\end{itemize}
+
+L'évolution en fonction des itérations de chaque grandeur est présentée dans les figures suivantes :
 
 \begin{figure}[H]
-	\centering
-	\includegraphics[width=0.6\textwidth]{resultatLinfini}
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{\FichierALM/Ini1/DeltaL.png}
+	\end{minipage}
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{\FichierALM/Ini1/stilde.png}
+	\end{minipage}	
 \end{figure}
 
+\begin{figure}[H]
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{\FichierALM/Ini1/Jphase.png}
+	\end{minipage}
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{\FichierALM/Ini1/Contrainte.png}
+	\end{minipage}	
+\end{figure}
+
+\newcounter{x}
+\setcounter{x}{0}
+
+\multido {\n=1+4}{7}{
+	\begin{figure}[H]
+		\begin{minipage}{0.24\textwidth}
+			\addtocounter{x}{\n}
+			\centering
+			\ifnum\thex<10
+				\includegraphics[width=0.9\textwidth]{\FichierALM/Ini1/Xsolide/Xsolide00\thex00.png}
+			\fi
+			\ifnum\thex>9
+				\includegraphics[width=0.9\textwidth]{\FichierALM/Ini1/Xsolide/Xsolide0\thex00.png}
+			\fi
+			\caption*{Iteration \thex}
+		\end{minipage}
+		\begin{minipage}{0.24\textwidth}
+			\addtocounter{x}{1}
+			\centering
+			\ifnum\thex<10
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini1/Xsolide/Xsolide00\thex00.png}
+			\fi
+			\ifnum\thex>9
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini1/Xsolide/Xsolide0\thex00.png}
+			\fi
+			\caption*{Iteration \thex}
+		\end{minipage}
+		\begin{minipage}{0.24\textwidth}
+			\addtocounter{x}{1}
+			\centering
+			\ifnum\thex<10
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini1/Xsolide/Xsolide00\thex00.png}
+			\fi
+			\ifnum\thex>9
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini1/Xsolide/Xsolide0\thex00.png}
+			\fi
+			\caption*{Iteration \thex}
+		\end{minipage}
+		\begin{minipage}{0.24\textwidth}
+			\addtocounter{x}{1}
+			\centering
+			\ifnum\thex<10
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini1/Xsolide/Xsolide00\thex00.png}
+			\fi
+			\ifnum\thex>9
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini1/Xsolide/Xsolide0\thex00.png}
+			\fi
+			\caption*{Iteration \thex}
+		\end{minipage}
+		\setcounter{x}{0}			
+	\end{figure}
+}	
 
 
 
-\section*{Annexe : methode avec adjoint pour la température}
 
-\subsection*{Derivation du problème}
+\paragraph{Initialisation 2 :}
 
-Afin de déterminer la dérivée, on utilise une méthode adjoint :
+\begin{itemize}
+	\item valeurs initiales : $\Delta L=0$ et $\stilde=1.1*L_l=2.2$ avec $L_l$ la longueur d'une ligne
+	\item parametres d'optimisation : $Lag_{ini}=0$; $\mu=10$; $\textrm{tol}_{sup}=650$
+	\item parametres physiques : $Tini=30;\,Tphase=500;\,Tsup=750$ et $epCaracCoucheCarre=0.0001;$
+\end{itemize}
 
-\begin{equation}
-\begin{array}{ll}
-\mathcal{L}(\Delta L,\tilde{s},v,q,\mu)= & \bigint_{\Omega}\Bigg[\Bigg(\Big(\int_{0}^{t_F}|v+T_{ini}|^rdt\Big)^{\frac{1}{r}}-T_{fu}\Bigg)^-\Bigg]^2dx +\textrm{lag}_{sup} \Bigg[\bigint_{0}^{t_F}\bigint_{\Omega}[(v+T_{ini}-T_{sup})^+]^2dxdt-\textrm{tol}_{sup}\Bigg] \\
-\\
-\, & + \bigint_{0}^{t_F}\bigint_{\Omega}\rho(\partial_t v)q+\frac{\lambda}{ep_{car}^2} vq-div(\lambda\nabla v)q-Q(\Delta L,\tilde{s})q dxdt +\bigint_{\Omega}\rho v(0)q(0) dx+\bigint_{0}^{t_F}\bigint_{\Gamma_D}\mu v dsdt\\
-\end{array}
-\end{equation}
+Le résultat final est :
+\begin{itemize}
+	\item $\Delta L= 0.15 ;\quad \stilde=6.0934$
+	\item $J_{phase}=158287;\quad C= 1464.82$
+\end{itemize}
 
-d'où 
+Le résultat n'est pas terrible mais l'initialisation était problablement particulièrement non pertinente.
+L'évolution en fonction des itérations de chaque grandeur est présentée dans les figures suivantes :
 
-\begin{equation}
-\begin{array}{ll}
-\mathcal{L}(\Delta L,\tilde{s},v,q,\mu)= & \bigint_{\Omega}\Bigg[\Bigg(\Big(\int_{0}^{t_F}|v+T_{ini}|^rdt\Big)^{\frac{1}{r}}-T_{fu}\Bigg)^-\Bigg]^2dx +\textrm{lag}_{sup} \Bigg[\bigint_{0}^{t_F}\bigint_{\Omega}[(v+T_{ini}-T_{sup})^+]^2dxdt-\textrm{tol}_{sup}\Bigg] \\
-\\
-\, & +\bigint_{\Omega}\rho v(0)q(0) dx+ \bigint_{0}^{t_F}\bigint_{\Omega}\rho\partial_t (vq)dxdt-\bigint_{0}^{t_F}\bigint_{\Omega}\rho(\partial_t q)vdxdt\\
-\\
-\, &+\bigint_{0}^{t_F}\bigint_{\Omega}\lambda\nabla v\nabla qdxdt +\bigint_{0}^{t_F}\bigint_{\Omega}\frac{\lambda}{ep_{car}^2} vq-Q(\Delta L,\tilde{s})q dxdt +\bigint_{0}^{t_F}\bigint_{\Gamma_D}\mu v -(\lambda\nabla v)qdsdt\\
-\end{array}
-\end{equation}
+\begin{figure}[H]
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{\FichierALM/Ini2/DeltaL.png}
+	\end{minipage}
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{\FichierALM/Ini2/stilde.png}
+	\end{minipage}	
+\end{figure}
 
-et donc 
+\begin{figure}[H]
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{\FichierALM/Ini2/Jphase.png}
+	\end{minipage}
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{\FichierALM/Ini2/Contrainte.png}
+	\end{minipage}	
+\end{figure}
 
-\begin{equation}
-\begin{array}{ll}
-\mathcal{L}(\Delta L,\tilde{s},v,q,\mu)= & \bigint_{\Omega}\Bigg[\Bigg(\Big(\int_{0}^{t_F}|v+T_{ini}|^rdt\Big)^{\frac{1}{r}}-T_{fu}\Bigg)^-\Bigg]^2dx +\textrm{lag}_{sup} \Bigg[\bigint_{0}^{t_F}\bigint_{\Omega}[(v+T_{ini}-T_{sup})^+]^2dxdt-\textrm{tol}_{sup}\Bigg] \\
-\\
-\, & +\bigint_{\Omega}\rho v(t_F)q(t_F) dx-\bigint_{0}^{t_F}\bigint_{\Omega}\rho(\partial_t q)vdxdt\\
-\\
-\, &+\bigint_{0}^{t_F}\bigint_{\Omega}\lambda\nabla v\nabla qdxdt +\bigint_{0}^{t_F}\bigint_{\Omega}\frac{\lambda}{ep_{car}^2} vq-Q(\Delta L,\tilde{s})q dxdt +\bigint_{0}^{t_F}\bigint_{\Gamma_D}\mu v -(\lambda\nabla v)qdsdt\\
-\end{array}
-\end{equation}
+\setcounter{x}{0}
 
-En dérivant par rapport à $v$ et en appliquant à la solution $\tilde{T}$ de l'équation de la chaleur :
+\multido {\n=1+4}{7}{
+	\begin{figure}[H]
+		\begin{minipage}{0.24\textwidth}
+			\addtocounter{x}{\n}
+			\centering
+			\ifnum\thex<10
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini2/Xsolide/Xsolide00\thex00.png}
+			\fi
+			\ifnum\thex>9
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini2/Xsolide/Xsolide0\thex00.png}
+			\fi
+			\caption*{Iteration \thex}
+		\end{minipage}
+		\begin{minipage}{0.24\textwidth}
+			\addtocounter{x}{1}
+			\centering
+			\ifnum\thex<10
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini2/Xsolide/Xsolide00\thex00.png}
+			\fi
+			\ifnum\thex>9
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini2/Xsolide/Xsolide0\thex00.png}
+			\fi
+			\caption*{Iteration \thex}
+		\end{minipage}
+		\begin{minipage}{0.24\textwidth}
+			\addtocounter{x}{1}
+			\centering
+			\ifnum\thex<10
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini2/Xsolide/Xsolide00\thex00.png}
+			\fi
+			\ifnum\thex>9
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini2/Xsolide/Xsolide0\thex00.png}
+			\fi
+			\caption*{Iteration \thex}
+		\end{minipage}
+		\begin{minipage}{0.24\textwidth}
+			\addtocounter{x}{1}
+			\centering
+			\ifnum\thex<10
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini2/Xsolide/Xsolide00\thex00.png}
+			\fi
+			\ifnum\thex>9
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini2/Xsolide/Xsolide0\thex00.png}
+			\fi
+			\caption*{Iteration \thex}
+		\end{minipage}
+		\setcounter{x}{0}			
+	\end{figure}
+}	
 
-\begin{equation}
-\begin{array}{ll}
-\partial_v\mathcal{L}&(\Delta L,\tilde{s},\tilde{T},q,\mu)(\phi)= \textrm{lag}_{sup} \bigint_{0}^{t_F}\bigint_{\Omega}2[(\tilde{T}+T_{ini}-T_{sup})^+]\phi dxdt\\
-\\
-\,\, +&\bigint_{\Omega}2\Bigg(\Big(\int_{0}^{t_F}|\tilde{T}+T_{ini}|^rdt\Big)^{\frac{1}{r}}-T_{fu}\Bigg)^-\frac{1}{r}\Big(\int_{0}^{t_F}|\tilde{T}+T_{ini}|^rdt\Big)^{\frac{1}{r}-1}\int_{0}^{t_F}r|\tilde{T}+T_{ini}|^{r-1}\phi dtdx \\
-\\
-\,\, + &\bigint_{0}^{t_F}\bigint_{\Omega}-\rho\partial_t q \phi+ \frac{\lambda}{ep_{car}^2} \phi q+\lambda\nabla \phi\nabla q dxdt +\bigintO\rho q(t_F)\phi(t_F)dx \\
-\\
-\,\, + & \bigint_{0}^{t_F}\bigint_{\Gamma_D}\Big(\mu \phi-(\lambda\nabla \phi)nq \Big)dsdt\\
-\end{array}
-\end{equation}
+\paragraph{Initialisation 3 :}
+
+\begin{itemize}
+	\item valeurs initiales : $\Delta L=0.2$ et $\stilde=1.1*L_l=2.2$ avec $L_l$ la longueur d'une ligne
+	\item parametres d'optimisation : $Lag_{ini}=0$; $\mu=10$; $\textrm{tol}_{sup}=650$
+	\item parametres physiques : $Tini=30;\,Tphase=500;\,Tsup=750$ et $epCaracCoucheCarre=0.0001;$
+\end{itemize}
+
+Le résultat final est :
+\begin{itemize}
+	\item $\Delta L= 0.307939 ;\quad \stilde=10.2199$
+	\item $J_{phase}=10254.4;\quad C= 671.638$
+\end{itemize}
+
+Le résultat est à peu près similaire à celui de l'initialisation 1.
+L'évolution en fonction des itérations de chaque grandeur est présentée dans les figures suivantes :
+
+\begin{figure}[H]
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{\FichierALM/Ini3/DeltaL.png}
+	\end{minipage}
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{\FichierALM/Ini3/stilde.png}
+	\end{minipage}	
+\end{figure}
+
+\begin{figure}[H]
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{\FichierALM/Ini3/Jphase.png}
+	\end{minipage}
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{\FichierALM/Ini3/Contrainte.png}
+	\end{minipage}	
+\end{figure}
+
+\setcounter{x}{0}
+
+\multido {\n=1+4}{7}{
+	\begin{figure}[H]
+		\begin{minipage}{0.24\textwidth}
+			\addtocounter{x}{\n}
+			\centering
+			\ifnum\thex<10
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini3/Xsolide/Xsolide00\thex00.png}
+			\fi
+			\ifnum\thex>9
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini3/Xsolide/Xsolide0\thex00.png}
+			\fi
+			\caption*{Iteration \thex}
+		\end{minipage}
+		\begin{minipage}{0.24\textwidth}
+			\addtocounter{x}{1}
+			\centering
+			\ifnum\thex<10
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini3/Xsolide/Xsolide00\thex00.png}
+			\fi
+			\ifnum\thex>9
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini3/Xsolide/Xsolide0\thex00.png}
+			\fi
+			\caption*{Iteration \thex}
+		\end{minipage}
+		\begin{minipage}{0.24\textwidth}
+			\addtocounter{x}{1}
+			\centering
+			\ifnum\thex<10
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini3/Xsolide/Xsolide00\thex00.png}
+			\fi
+			\ifnum\thex>9
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini3/Xsolide/Xsolide0\thex00.png}
+			\fi
+			\caption*{Iteration \thex}
+		\end{minipage}
+		\begin{minipage}{0.24\textwidth}
+			\addtocounter{x}{1}
+			\centering
+			\ifnum\thex<10
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini3/Xsolide/Xsolide00\thex00.png}
+			\fi
+			\ifnum\thex>9
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini3/Xsolide/Xsolide0\thex00.png}
+			\fi
+			\caption*{Iteration \thex}
+		\end{minipage}
+		\setcounter{x}{0}			
+	\end{figure}
+}	
+
+\paragraph{Initialisation 4 :}
+
+\begin{itemize}
+	\item valeurs initiales : $\Delta L=\Delta L_{max}=1$ et $\stilde=11*L_l=22$ avec $L_l$ la longueur d'une ligne
+	\item parametres d'optimisation : $Lag_{ini}=0$; $\mu=10$; $\textrm{tol}_{sup}=650$
+	\item parametres physiques : $Tini=30;\,Tphase=500;\,Tsup=750$ et $epCaracCoucheCarre=0.0001;$
+\end{itemize}
+
+Le résultat final est :
+\begin{itemize}
+	\item $\Delta L= 0.311886;\quad \stilde=16.0997$
+	\item $J_{phase}=10874.6;\quad C= 675.787$
+\end{itemize}
+
+On retouve là encore les résultats précédent.
+L'évolution en fonction des itérations de chaque grandeur est présentée dans les figures suivantes :
+
+\begin{figure}[H]
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{\FichierALM/Ini4/DeltaL.png}
+	\end{minipage}
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{\FichierALM/Ini4/stilde.png}
+	\end{minipage}	
+\end{figure}
+
+\begin{figure}[H]
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{\FichierALM/Ini4/Jphase.png}
+	\end{minipage}
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{\FichierALM/Ini4/Contrainte.png}
+	\end{minipage}	
+\end{figure}
+
+\setcounter{x}{0}
+
+\multido {\n=1+4}{7}{
+	\begin{figure}[H]
+		\begin{minipage}{0.24\textwidth}
+			\addtocounter{x}{\n}
+			\centering
+			\ifnum\thex<10
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini4/Xsolide/Xsolide00\thex00.png}
+			\fi
+			\ifnum\thex>9
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini4/Xsolide/Xsolide0\thex00.png}
+			\fi
+			\caption*{Iteration \thex}
+		\end{minipage}
+		\begin{minipage}{0.24\textwidth}
+			\addtocounter{x}{1}
+			\centering
+			\ifnum\thex<10
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini4/Xsolide/Xsolide00\thex00.png}
+			\fi
+			\ifnum\thex>9
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini4/Xsolide/Xsolide0\thex00.png}
+			\fi
+			\caption*{Iteration \thex}
+		\end{minipage}
+		\begin{minipage}{0.24\textwidth}
+			\addtocounter{x}{1}
+			\centering
+			\ifnum\thex<10
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini4/Xsolide/Xsolide00\thex00.png}
+			\fi
+			\ifnum\thex>9
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini4/Xsolide/Xsolide0\thex00.png}
+			\fi
+			\caption*{Iteration \thex}
+		\end{minipage}
+		\begin{minipage}{0.24\textwidth}
+			\addtocounter{x}{1}
+			\centering
+			\ifnum\thex<10
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini4/Xsolide/Xsolide00\thex00.png}
+			\fi
+			\ifnum\thex>9
+			\includegraphics[width=0.9\textwidth]{\FichierALM/Ini4/Xsolide/Xsolide0\thex00.png}
+			\fi
+			\caption*{Iteration \thex}
+		\end{minipage}
+		\setcounter{x}{0}			
+	\end{figure}
+}	
 
 
-\begin{equation}
-\begin{array}{ll}
-\partial_v\mathcal{L}&(\Delta L,\tilde{s},\tilde{T},q,\mu)(\phi)= \textrm{lag}_{sup} \bigint_{0}^{t_F}\bigint_{\Omega}2[(\tilde{T}+T_{ini}-T_{sup})^+]\phi dxdt\\
-\\
-\,\, +&\bigint_{\Omega}2\Bigg(\Big(\int_{0}^{t_F}|\tilde{T}+T_{ini}|^rdt\Big)^{\frac{1}{r}}-T_{fu}\Bigg)^-\frac{1}{r}\Big(\int_{0}^{t_F}|\tilde{T}+T_{ini}|^rdt\Big)^{\frac{1}{r}-1}\int_{0}^{t_F}r|\tilde{T}+T_{ini}|^{r-1}\phi dtdx \\
-\\
-\,\, + &\bigint_{0}^{t_F}\bigint_{\Omega}-\rho\partial_t q \phi+ \frac{\lambda}{ep_{car}^2} \phi q-\textrm{div}\big(\lambda\nabla q\big) \phi dxdt +\bigintO\rho q(t_F)\phi(t_F)dx \\
-\\
-\,\, + & \bigint_{0}^{t_F}\bigint_{\Gamma_D}\Big(\mu \phi-(\lambda\nabla \phi)nq-(\lambda\nabla q)n\phi \Big)dsdt\\
-\end{array}
-\end{equation}
 
-On en déduit alors l'équation des adjoints :
+
+
+
+\section*{Variation : lignes parcourues dans un sens puis dans l'autre}
+
+On s'intéresse maintenant au cas où, au lieu de recommencer toujours de la gauche les lignes droites, on alterne en recommençant du côté où l'on s'est arrêté. Il s'agit alors de reprogrammer la source et de déterminer sa dérivée. 
+
+
+On détermine l'évolution de l'abscisse et de l'ordonnée au cours du temps :
 
 \begin{equation}
 \left\{
-\begin{array}{ll}
-\rho\partial_t p-\frac{\lambda}{ep_{car}^2} p+div(\lambda\nabla p)= 2\textrm{lag}_{sup}\textrm{ind}_{Cont}(t)+2\textrm{N}_{Moins}\textrm{N}_r^{1-r}(\textrm{ind}_{Phase}(t))^{r-1}& \textrm{in} (0,t_F)\times \Omega \\
-p=0 & \textrm{in} (0,t_F)\times \Gamma_D \\
-p(t_F)= 0 & \textrm{in} \, \Omega \\
-\mu=(\lambda\nabla q)n & \textrm{in}(0,t_F)\times\Gamma_D
-\end{array}
-\right.
-\end{equation}
-
-avec 
-
-\begin{equation}
-\begin{aligned}
-&\textrm{ind}_{Cont}(t)=(\tilde{T}+T_{ini}-T_{sup})^+ \\
-&\textrm{ind}_{Phase}(t)=|\tilde{T}+T_{ini}| \\
-& \textrm{N}_r=\Big(\int_{0}^{t_F}|\tilde{T}+T_{ini}|^rdt\Big)^{\frac{1}{r}}\\
-&\textrm{N}_{Moins}=(\textrm{Norme}-T_{fu})^-=\Big(\int_{0}^{t_F}|\tilde{T}+T_{ini}|^rdt\Big)^{\frac{1}{r}}-T_{fu}\Big)^-
-\end{aligned}
-\end{equation}
-
-Et la forme variationnelle suivante : trouver $p\in V$ tel que
-\begin{equation}
-\forall \phi\in V, \quad \int_{\Omega}\rho\partial_t p\phi-\lambda\nabla p\nabla \phi-\frac{\lambda}{ep_{car}^2} p \phi -\Big(2\textrm{lag}_{sup}\textrm{ind}_{Cont}(t)+2\textrm{N}_{Moins}\textrm{N}_r^{1-r}(\textrm{ind}_{Phase}(t))^{r-1}\Big)dx=0
-\end{equation}
-
-
-De plus, on obtient alors la dérivée de la fonction objectif par rapport à $\Delta L$ et $\tilde s$ :
-
-\begin{equation}
-\begin{aligned}
-&\partial_{\Delta L}\tilde{J}(\Delta L, \tilde s)=-\int_{0}^{t_F}\intO \partial_{\Delta L} Q p dxdt \\
-&\partial_{\tilde s}\tilde{J}(\Delta L, \tilde s)=-\int_{0}^{t_F}\intO \partial_{\tilde s} Q p dxdt 
-\end{aligned}
-\end{equation}
-
-avec 
-\begin{equation}
-\begin{array}{ll}
-\partial_{\Delta L} Q&=\heavi(\tilde{s}-tV)S(t,x,y,\Delta L)*(-200)(y-y_C(t,\Delta L))*(-1)*\partial_{\Delta L}y_C(t,\Delta L)\\
-\\
-\, & =\heavi(\tilde{s}-tV)S(t,x,y,\Delta L)*(-200)(y-y_C(t,\Delta L))*(-1)*(-1)*\textrm{Ent}\Big[\frac{t}{t_{Li}}\Big] \\
-\\
-\, & =\heavi(\tilde{s}-tV)S(t,x,y,\Delta L)*(-200)(y-y_C(t,\Delta L))\textrm{Ent}\Big[\frac{t}{t_{Li}}\Big] 
-\end{array} 
-\end{equation}
-
-et 
-
-\begin{equation}
-\partial_{\tilde{s} Q}=S(t,x,y,\Delta L)*\heaviP(\tilde{s}-tV)
-\end{equation}
-
-
-\subsection*{Discrétisation temporelle}
-
-On utilise un schéma implicite pour l'équation de la chaleur :
-
-\begin{equation}
-\accUnecol{
-	\intO \left(\rho+\frac{\lambda}{ep^2_{car}}\Delta t\right)\tilde{T}_{j+1}vdx+\intO \lambda\Delta t \nabla\tilde{T}_{j+1}\nabla vdx-\intO\left(Q_{j+1}\Delta t-\rho\tilde{T}_j\right)vdx=0 \\
-	\tilde{T}_0=T_{ini}
-}
-\end{equation}
-
-\begin{equation}
-J(\Delta L,\tilde{s})=\bigint_{\Omega}\Bigg[\Bigg(\Big(\sum_{j=0}^{N_F}\Delta t|\tilde{T_j}+T_{ini}|^r\Big)^{\frac{1}{r}}-T_{fu}\Bigg)^-\Bigg]^2 
-\end{equation}
-
-
-\begin{equation}
-C(\Delta L,\tilde{s})=\sum_{j=0}^{N_F}\Delta t\int_{\Omega}[(\tilde{T_j}+T_{ini}-T_{sup})^+]^2dx-\textrm{tol}_{sup}
-\end{equation}
-
-\begin{equation}
 \begin{array}{l}
-\forall \phi\in V, \\
-\\
-\accUnecol{
-	\intO\left(\rho+\frac{\lambda}{ep_{car}^2}\Delta t\right)p_j\phi+\lambda\Delta t\nabla p_j \nabla \phi dx +\bigintO\Delta t\Big(2\textrm{lag}_{sup,j}\textrm{ind}_{Cont,j}+2\textrm{N}_{Moins}\textrm{N}_r^{1-r}(\textrm{ind}_{Phase,j})^{r-1}\Big)\phi-\intO\rho p_{j+1}\phi dx=0 \\
-	p_{N_F}=0
-}
+\left\{\begin{array}{ll}
+x_C(t)=x_{M0}+\Big(t-\textrm{Ent}\Big[\frac{t}{t_{Li}}\Big]*t_{Li}\Big)*V & \textrm{si\,}\textrm{Ent}\Big[\frac{t}{t_{Li}}\Big]\textrm{\,pair} \\
+x_C(t)=x_{M1}-\Big(t-\textrm{Ent}\Big[\frac{t}{t_{Li}}\Big]*t_{Li}\Big)*V & \textrm{si\,}\textrm{Ent}\Big[\frac{t}{t_{Li}}\Big]\textrm{\,impair}
 \end{array}
+\right. \\
+y_C(T)=\textrm{Ent}\Big[\frac{t}{t_{Li}}\Big]*\Delta L
+\end{array}
+\right. 
 \end{equation}
 
+
+On a alors 
 
 \begin{equation}
-\begin{aligned}
-&\partial_{\Delta L}\tilde{J}(\Delta L, \tilde s)=-\sum_{0}^{t_F}\Delta t\intO \partial_{\Delta L} Q_j p dx=-\sum_{0}^{t_F}\Delta t\intO\heavi(\tilde{s}-t_jV)S(t_j,x,y,\Delta L)*(-200)(y-y_C(t_j,\Delta L))\textrm{Ent}\Big[\frac{t_j}{t_{Li}}\Big]p_j dx \\
-&\partial_{\tilde s}\tilde{J}(\Delta L, \tilde s)=-\sum_{0}^{t_F}\intO \partial_{\tilde s} Q_j p_j dx =-\sum_{0}^{t_F}\intO S(t_j,x,y,\Delta L)*\heaviP(\tilde{s}-t_jV)p_j dx
-\end{aligned}
-\end{equation}
+Q(t,x,y,\Delta L,\tilde{s})=S(t,x,y,\Delta L)*\heavi(\tilde{s}-tV)
+\end{equation}  
+
+\subsection*{Résultats}
+\newcommand\FichierALMCh{/Users/mathilde/These/Projets/OptimisationTrajectoire/LignesDroites/NbLignesNonFixe/LignesEquidistantes/deuxVariables/SansAdjoint/RectangleChangementSens/AugmentedLagrangian/ResultatsTests/tout/}
+
+Les initialisations 1 et 3 ont été testées dans ce cas.
+
+\paragraph{Initialisation 1 :}
+
+\begin{itemize}
+	\item valeurs initiales : $\Delta L=0.6$ et $\stilde=10$
+	\item parametres d'optimisation : $Lag_{ini}=0$; $\mu=10$; $\textrm{tol}_{sup}=650$
+	\item parametres physiques : $Tini=30;\,Tphase=500;\,Tsup=750$ et $epCaracCoucheCarre=0.0001;$
+\end{itemize}
+
+Le résultat final est :
+\begin{itemize}
+	\item $\Delta L= 0.339235;\quad \stilde=14.2642 $
+	\item $J_{phase}=20179.4;\quad C= 668.705$
+\end{itemize}
+
+L'évolution en fonction des itérations de chaque grandeur est présentée dans les figures suivantes :
+
+\begin{figure}[H]
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{\FichierALMCh/Ini1/DeltaL.png}
+	\end{minipage}
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{\FichierALMCh/Ini1/stilde.png}
+	\end{minipage}	
+\end{figure}
+
+\begin{figure}[H]
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{\FichierALMCh/Ini1/Jphase.png}
+	\end{minipage}
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{\FichierALMCh/Ini1/Contrainte.png}
+	\end{minipage}	
+\end{figure}
+
+\setcounter{x}{0}
+
+\multido {\n=1+4}{7}{
+	\begin{figure}[H]
+		\begin{minipage}{0.24\textwidth}
+			\addtocounter{x}{\n}
+			\centering
+			\ifnum\thex<10
+			\includegraphics[width=0.9\textwidth]{\FichierALMCh/Ini1/Xsolide/Xsolide00\thex00.png}
+			\fi
+			\ifnum\thex>9
+			\includegraphics[width=0.9\textwidth]{\FichierALMCh/Ini1/Xsolide/Xsolide0\thex00.png}
+			\fi
+			\caption*{Iteration \thex}
+		\end{minipage}
+		\begin{minipage}{0.24\textwidth}
+			\addtocounter{x}{1}
+			\centering
+			\ifnum\thex<10
+			\includegraphics[width=0.9\textwidth]{\FichierALMCh/Ini1/Xsolide/Xsolide00\thex00.png}
+			\fi
+			\ifnum\thex>9
+			\includegraphics[width=0.9\textwidth]{\FichierALMCh/Ini1/Xsolide/Xsolide0\thex00.png}
+			\fi
+			\caption*{Iteration \thex}
+		\end{minipage}
+		\begin{minipage}{0.24\textwidth}
+			\addtocounter{x}{1}
+			\centering
+			\ifnum\thex<10
+			\includegraphics[width=0.9\textwidth]{\FichierALMCh/Ini1/Xsolide/Xsolide00\thex00.png}
+			\fi
+			\ifnum\thex>9
+			\includegraphics[width=0.9\textwidth]{\FichierALMCh/Ini1/Xsolide/Xsolide0\thex00.png}
+			\fi
+			\caption*{Iteration \thex}
+		\end{minipage}
+		\begin{minipage}{0.24\textwidth}
+			\addtocounter{x}{1}
+			\centering
+			\ifnum\thex<10
+			\includegraphics[width=0.9\textwidth]{\FichierALMCh/Ini1/Xsolide/Xsolide00\thex00.png}
+			\fi
+			\ifnum\thex>9
+			\includegraphics[width=0.9\textwidth]{\FichierALMCh/Ini1/Xsolide/Xsolide0\thex00.png}
+			\fi
+			\caption*{Iteration \thex}
+		\end{minipage}
+		\setcounter{x}{0}			
+	\end{figure}
+}	
+
+
+
+\paragraph{Initialisation 3 :}
+
+\begin{itemize}
+	\item valeurs initiales : $\Delta L=0.2$ et $\stilde=1.1*L_l=2.2$ avec $L_l$ la longueur d'une ligne
+	\item parametres d'optimisation : $Lag_{ini}=0$; $\mu=10$; $\textrm{tol}_{sup}=650$
+	\item parametres physiques : $Tini=30;\,Tphase=500;\,Tsup=750$ et $epCaracCoucheCarre=0.0001;$
+\end{itemize}
+
+Le résultat final est :
+\begin{itemize}
+	\item $\Delta L= 0.30789 ;\quad \stilde=10.2191$
+	\item $J_{phase}=10243.9;\quad C= 663.754$
+\end{itemize}
+
+Le résultat est à peu près similaire à celui de l'initialisation 1.
+L'évolution en fonction des itérations de chaque grandeur est présentée dans les figures suivantes :
+
+\begin{figure}[H]
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{\FichierALMCh/Ini3/DeltaL.png}
+	\end{minipage}
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{\FichierALMCh/Ini3/stilde.png}
+	\end{minipage}	
+\end{figure}
+
+\begin{figure}[H]
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{\FichierALMCh/Ini3/Jphase.png}
+	\end{minipage}
+	\begin{minipage}{0.45\textwidth}
+		\centering
+		\includegraphics[width=0.7\textwidth]{\FichierALMCh/Ini3/Contrainte.png}
+	\end{minipage}	
+\end{figure}
+
+\setcounter{x}{0}
+
+\multido {\n=1+4}{7}{
+	\begin{figure}[H]
+		\begin{minipage}{0.24\textwidth}
+			\addtocounter{x}{\n}
+			\centering
+			\ifnum\thex<10
+			\includegraphics[width=0.9\textwidth]{\FichierALMCh/Ini3/Xsolide/Xsolide00\thex00.png}
+			\fi
+			\ifnum\thex>9
+			\includegraphics[width=0.9\textwidth]{\FichierALMCh/Ini3/Xsolide/Xsolide0\thex00.png}
+			\fi
+			\caption*{Iteration \thex}
+		\end{minipage}
+		\begin{minipage}{0.24\textwidth}
+			\addtocounter{x}{1}
+			\centering
+			\ifnum\thex<10
+			\includegraphics[width=0.9\textwidth]{\FichierALMCh/Ini3/Xsolide/Xsolide00\thex00.png}
+			\fi
+			\ifnum\thex>9
+			\includegraphics[width=0.9\textwidth]{\FichierALMCh/Ini3/Xsolide/Xsolide0\thex00.png}
+			\fi
+			\caption*{Iteration \thex}
+		\end{minipage}
+		\begin{minipage}{0.24\textwidth}
+			\addtocounter{x}{1}
+			\centering
+			\ifnum\thex<10
+			\includegraphics[width=0.9\textwidth]{\FichierALMCh/Ini3/Xsolide/Xsolide00\thex00.png}
+			\fi
+			\ifnum\thex>9
+			\includegraphics[width=0.9\textwidth]{\FichierALMCh/Ini3/Xsolide/Xsolide0\thex00.png}
+			\fi
+			\caption*{Iteration \thex}
+		\end{minipage}
+		\begin{minipage}{0.24\textwidth}
+			\addtocounter{x}{1}
+			\centering
+			\ifnum\thex<10
+			\includegraphics[width=0.9\textwidth]{\FichierALMCh/Ini3/Xsolide/Xsolide00\thex00.png}
+			\fi
+			\ifnum\thex>9
+			\includegraphics[width=0.9\textwidth]{\FichierALMCh/Ini3/Xsolide/Xsolide0\thex00.png}
+			\fi
+			\caption*{Iteration \thex}
+		\end{minipage}
+		\setcounter{x}{0}			
+	\end{figure}
+}	
+
+\section*{Pour la suite}
+
+Plusieurs pistes pour continuer ce projet sont possibles pour la suite :
+
+\begin{itemize}
+	\item Optimisation de la distance entre les lignes pour une trajectoire en lignes droites sur une forme rectangulaire :
+	\begin{itemize}
+		\item Amélioration des données et de la définition des fonctions objectifs et de contraintes pour être au plus près du problème physique.
+		\item Traitement de la contrainte de manière plus forte ou algorithme d'optimisation qui converge plus rapidement. (à voir pour ce point là)
+	\end{itemize}
+	
+	\item Optimisation de la distance entre les lignes pour une trajectoire en lignes droites :
+	\begin{itemize}
+		\item Adaptation à d'autres formes :
+		\begin{itemize}
+			\item formes dont on connait le paramétrage des bords : triangle, ovale, cercle, ... Le problème principal à régler est que la longueur de chaque ligne dépend de $\Delta L$ et on induit de nouvelles discontinuités beaucoup plus compliquées à régler dans la source.
+			\item formes dont on n'a pas d'équation explicite (levelset de fonction, ...)
+		\end{itemize}
+	\end{itemize}
+	
+	\item Trajectoires en lignes droite : ajout d'un angle de parcours et optimisation de l'angle.
+	\begin{itemize}
+		\item en 2D : on le fait pour une seule couche afin de voir si physiquement, ça fait une différence (ça en fait une d'un point de vue vitesse de parcours, cf Rajan 2001)
+		\item en 3D : on construit couche après couche et on veut savoir l'évolution de la distance entre les lignes ainsi que de l'angle pour chaque couche.
+	\end{itemize}
+	
+	\item Adaptation à d'autres types de trajectoires :
+	\begin{itemize}
+		\item zig-zag
+		\item isovaleurs
+		\item ... mais ce qui est sûr, c'est qu'il faudra trouver un moyen de gérer la discontinuité de la source.
+	\end{itemize}
+\end{itemize}
+
+%\section*{Annexe : methode avec adjoint pour la température}
+%
+%\subsection*{Derivation du problème}
+%
+%Afin de déterminer la dérivée, on utilise une méthode adjoint :
+%
+%\begin{equation}
+%\begin{array}{ll}
+%\mathcal{L}(\Delta L,\tilde{s},v,q,\mu)= & \bigint_{\Omega}\Bigg[\Bigg(\Big(\int_{0}^{t_F}|v+T_{ini}|^rdt\Big)^{\frac{1}{r}}-T_{fu}\Bigg)^-\Bigg]^2dx +\textrm{lag}_{sup} \Bigg[\bigint_{0}^{t_F}\bigint_{\Omega}[(v+T_{ini}-T_{sup})^+]^2dxdt-\textrm{tol}_{sup}\Bigg] \\
+%\\
+%\, & + \bigint_{0}^{t_F}\bigint_{\Omega}\rho(\partial_t v)q+\frac{\lambda}{ep_{car}^2} vq-div(\lambda\nabla v)q-Q(\Delta L,\tilde{s})q dxdt +\bigint_{\Omega}\rho v(0)q(0) dx+\bigint_{0}^{t_F}\bigint_{\Gamma_D}\mu v dsdt\\
+%\end{array}
+%\end{equation}
+%
+%d'où 
+%
+%\begin{equation}
+%\begin{array}{ll}
+%\mathcal{L}(\Delta L,\tilde{s},v,q,\mu)= & \bigint_{\Omega}\Bigg[\Bigg(\Big(\int_{0}^{t_F}|v+T_{ini}|^rdt\Big)^{\frac{1}{r}}-T_{fu}\Bigg)^-\Bigg]^2dx +\textrm{lag}_{sup} \Bigg[\bigint_{0}^{t_F}\bigint_{\Omega}[(v+T_{ini}-T_{sup})^+]^2dxdt-\textrm{tol}_{sup}\Bigg] \\
+%\\
+%\, & +\bigint_{\Omega}\rho v(0)q(0) dx+ \bigint_{0}^{t_F}\bigint_{\Omega}\rho\partial_t (vq)dxdt-\bigint_{0}^{t_F}\bigint_{\Omega}\rho(\partial_t q)vdxdt\\
+%\\
+%\, &+\bigint_{0}^{t_F}\bigint_{\Omega}\lambda\nabla v\nabla qdxdt +\bigint_{0}^{t_F}\bigint_{\Omega}\frac{\lambda}{ep_{car}^2} vq-Q(\Delta L,\tilde{s})q dxdt +\bigint_{0}^{t_F}\bigint_{\Gamma_D}\mu v -(\lambda\nabla v)qdsdt\\
+%\end{array}
+%\end{equation}
+%
+%et donc 
+%
+%\begin{equation}
+%\begin{array}{ll}
+%\mathcal{L}(\Delta L,\tilde{s},v,q,\mu)= & \bigint_{\Omega}\Bigg[\Bigg(\Big(\int_{0}^{t_F}|v+T_{ini}|^rdt\Big)^{\frac{1}{r}}-T_{fu}\Bigg)^-\Bigg]^2dx +\textrm{lag}_{sup} \Bigg[\bigint_{0}^{t_F}\bigint_{\Omega}[(v+T_{ini}-T_{sup})^+]^2dxdt-\textrm{tol}_{sup}\Bigg] \\
+%\\
+%\, & +\bigint_{\Omega}\rho v(t_F)q(t_F) dx-\bigint_{0}^{t_F}\bigint_{\Omega}\rho(\partial_t q)vdxdt\\
+%\\
+%\, &+\bigint_{0}^{t_F}\bigint_{\Omega}\lambda\nabla v\nabla qdxdt +\bigint_{0}^{t_F}\bigint_{\Omega}\frac{\lambda}{ep_{car}^2} vq-Q(\Delta L,\tilde{s})q dxdt +\bigint_{0}^{t_F}\bigint_{\Gamma_D}\mu v -(\lambda\nabla v)qdsdt\\
+%\end{array}
+%\end{equation}
+%
+%En dérivant par rapport à $v$ et en appliquant à la solution $\tilde{T}$ de l'équation de la chaleur :
+%
+%\begin{equation}
+%\begin{array}{ll}
+%\partial_v\mathcal{L}&(\Delta L,\tilde{s},\tilde{T},q,\mu)(\phi)= \textrm{lag}_{sup} \bigint_{0}^{t_F}\bigint_{\Omega}2[(\tilde{T}+T_{ini}-T_{sup})^+]\phi dxdt\\
+%\\
+%\,\, +&\bigint_{\Omega}2\Bigg(\Big(\int_{0}^{t_F}|\tilde{T}+T_{ini}|^rdt\Big)^{\frac{1}{r}}-T_{fu}\Bigg)^-\frac{1}{r}\Big(\int_{0}^{t_F}|\tilde{T}+T_{ini}|^rdt\Big)^{\frac{1}{r}-1}\int_{0}^{t_F}r|\tilde{T}+T_{ini}|^{r-1}\phi dtdx \\
+%\\
+%\,\, + &\bigint_{0}^{t_F}\bigint_{\Omega}-\rho\partial_t q \phi+ \frac{\lambda}{ep_{car}^2} \phi q+\lambda\nabla \phi\nabla q dxdt +\bigintO\rho q(t_F)\phi(t_F)dx \\
+%\\
+%\,\, + & \bigint_{0}^{t_F}\bigint_{\Gamma_D}\Big(\mu \phi-(\lambda\nabla \phi)nq \Big)dsdt\\
+%\end{array}
+%\end{equation}
+%
+%
+%\begin{equation}
+%\begin{array}{ll}
+%\partial_v\mathcal{L}&(\Delta L,\tilde{s},\tilde{T},q,\mu)(\phi)= \textrm{lag}_{sup} \bigint_{0}^{t_F}\bigint_{\Omega}2[(\tilde{T}+T_{ini}-T_{sup})^+]\phi dxdt\\
+%\\
+%\,\, +&\bigint_{\Omega}2\Bigg(\Big(\int_{0}^{t_F}|\tilde{T}+T_{ini}|^rdt\Big)^{\frac{1}{r}}-T_{fu}\Bigg)^-\frac{1}{r}\Big(\int_{0}^{t_F}|\tilde{T}+T_{ini}|^rdt\Big)^{\frac{1}{r}-1}\int_{0}^{t_F}r|\tilde{T}+T_{ini}|^{r-1}\phi dtdx \\
+%\\
+%\,\, + &\bigint_{0}^{t_F}\bigint_{\Omega}-\rho\partial_t q \phi+ \frac{\lambda}{ep_{car}^2} \phi q-\textrm{div}\big(\lambda\nabla q\big) \phi dxdt +\bigintO\rho q(t_F)\phi(t_F)dx \\
+%\\
+%\,\, + & \bigint_{0}^{t_F}\bigint_{\Gamma_D}\Big(\mu \phi-(\lambda\nabla \phi)nq-(\lambda\nabla q)n\phi \Big)dsdt\\
+%\end{array}
+%\end{equation}
+%
+%On en déduit alors l'équation des adjoints :
+%
+%\begin{equation}
+%\left\{
+%\begin{array}{ll}
+%\rho\partial_t p-\frac{\lambda}{ep_{car}^2} p+div(\lambda\nabla p)= 2\textrm{lag}_{sup}\textrm{ind}_{Cont}(t)+2\textrm{N}_{Moins}\textrm{N}_r^{1-r}(\textrm{ind}_{Phase}(t))^{r-1}& \textrm{in} (0,t_F)\times \Omega \\
+%p=0 & \textrm{in} (0,t_F)\times \Gamma_D \\
+%p(t_F)= 0 & \textrm{in} \, \Omega \\
+%\mu=(\lambda\nabla q)n & \textrm{in}(0,t_F)\times\Gamma_D
+%\end{array}
+%\right.
+%\end{equation}
+%
+%avec 
+%
+%\begin{equation}
+%\begin{aligned}
+%&\textrm{ind}_{Cont}(t)=(\tilde{T}+T_{ini}-T_{sup})^+ \\
+%&\textrm{ind}_{Phase}(t)=|\tilde{T}+T_{ini}| \\
+%& \textrm{N}_r=\Big(\int_{0}^{t_F}|\tilde{T}+T_{ini}|^rdt\Big)^{\frac{1}{r}}\\
+%&\textrm{N}_{Moins}=(\textrm{Norme}-T_{fu})^-=\Big(\int_{0}^{t_F}|\tilde{T}+T_{ini}|^rdt\Big)^{\frac{1}{r}}-T_{fu}\Big)^-
+%\end{aligned}
+%\end{equation}
+%
+%Et la forme variationnelle suivante : trouver $p\in V$ tel que
+%\begin{equation}
+%\forall \phi\in V, \quad \int_{\Omega}\rho\partial_t p\phi-\lambda\nabla p\nabla \phi-\frac{\lambda}{ep_{car}^2} p \phi -\Big(2\textrm{lag}_{sup}\textrm{ind}_{Cont}(t)+2\textrm{N}_{Moins}\textrm{N}_r^{1-r}(\textrm{ind}_{Phase}(t))^{r-1}\Big)dx=0
+%\end{equation}
+%
+%
+%De plus, on obtient alors la dérivée de la fonction objectif par rapport à $\Delta L$ et $\tilde s$ :
+%
+%\begin{equation}
+%\begin{aligned}
+%&\partial_{\Delta L}\tilde{J}(\Delta L, \tilde s)=-\int_{0}^{t_F}\intO \partial_{\Delta L} Q p dxdt \\
+%&\partial_{\tilde s}\tilde{J}(\Delta L, \tilde s)=-\int_{0}^{t_F}\intO \partial_{\tilde s} Q p dxdt 
+%\end{aligned}
+%\end{equation}
+%
+%avec 
+%\begin{equation}
+%\begin{array}{ll}
+%\partial_{\Delta L} Q&=\heavi(\tilde{s}-tV)S(t,x,y,\Delta L)*(-200)(y-y_C(t,\Delta L))*(-1)*\partial_{\Delta L}y_C(t,\Delta L)\\
+%\\
+%\, & =\heavi(\tilde{s}-tV)S(t,x,y,\Delta L)*(-200)(y-y_C(t,\Delta L))*(-1)*(-1)*\textrm{Ent}\Big[\frac{t}{t_{Li}}\Big] \\
+%\\
+%\, & =\heavi(\tilde{s}-tV)S(t,x,y,\Delta L)*(-200)(y-y_C(t,\Delta L))\textrm{Ent}\Big[\frac{t}{t_{Li}}\Big] 
+%\end{array} 
+%\end{equation}
+%
+%et 
+%
+%\begin{equation}
+%\partial_{\tilde{s} Q}=S(t,x,y,\Delta L)*\heaviP(\tilde{s}-tV)
+%\end{equation}
+%
+%
+%\subsection*{Discrétisation temporelle}
+%
+%On utilise un schéma implicite pour l'équation de la chaleur :
+%
+%\begin{equation}
+%\accUnecol{
+%	\intO \left(\rho+\frac{\lambda}{ep^2_{car}}\Delta t\right)\tilde{T}_{j+1}vdx+\intO \lambda\Delta t \nabla\tilde{T}_{j+1}\nabla vdx-\intO\left(Q_{j+1}\Delta t-\rho\tilde{T}_j\right)vdx=0 \\
+%	\tilde{T}_0=T_{ini}
+%}
+%\end{equation}
+%
+%\begin{equation}
+%J(\Delta L,\tilde{s})=\bigint_{\Omega}\Bigg[\Bigg(\Big(\sum_{j=0}^{N_F}\Delta t|\tilde{T_j}+T_{ini}|^r\Big)^{\frac{1}{r}}-T_{fu}\Bigg)^-\Bigg]^2 
+%\end{equation}
+%
+%
+%\begin{equation}
+%C(\Delta L,\tilde{s})=\sum_{j=0}^{N_F}\Delta t\int_{\Omega}[(\tilde{T_j}+T_{ini}-T_{sup})^+]^2dx-\textrm{tol}_{sup}
+%\end{equation}
+%
+%\begin{equation}
+%\begin{array}{l}
+%\forall \phi\in V, \\
+%\\
+%\accUnecol{
+%	\intO\left(\rho+\frac{\lambda}{ep_{car}^2}\Delta t\right)p_j\phi+\lambda\Delta t\nabla p_j \nabla \phi dx +\bigintO\Delta t\Big(2\textrm{lag}_{sup,j}\textrm{ind}_{Cont,j}+2\textrm{N}_{Moins}\textrm{N}_r^{1-r}(\textrm{ind}_{Phase,j})^{r-1}\Big)\phi-\intO\rho p_{j+1}\phi dx=0 \\
+%	p_{N_F}=0
+%}
+%\end{array}
+%\end{equation}
+%
+%
+%\begin{equation}
+%\begin{aligned}
+%&\partial_{\Delta L}\tilde{J}(\Delta L, \tilde s)=-\sum_{0}^{t_F}\Delta t\intO \partial_{\Delta L} Q_j p dx=-\sum_{0}^{t_F}\Delta t\intO\heavi(\tilde{s}-t_jV)S(t_j,x,y,\Delta L)*(-200)(y-y_C(t_j,\Delta L))\textrm{Ent}\Big[\frac{t_j}{t_{Li}}\Big]p_j dx \\
+%&\partial_{\tilde s}\tilde{J}(\Delta L, \tilde s)=-\sum_{0}^{t_F}\intO \partial_{\tilde s} Q_j p_j dx =-\sum_{0}^{t_F}\intO S(t_j,x,y,\Delta L)*\heaviP(\tilde{s}-t_jV)p_j dx
+%\end{aligned}
+%\end{equation}
 
 
 

@@ -1,0 +1,48 @@
+This is BibTeX, Version 0.99d (TeX Live 2015)
+Capacity: max_strings=35307, hash_size=35307, hash_prime=30011
+The top-level auxiliary file: modelisation.aux
+The style file: plain-fr.bst
+Database file #1: biblio.bib
+Warning--empty note in AllaireTakingaccountthermal2017
+You've used 6 entries,
+            2238 wiz_defined-function locations,
+            579 strings with 6313 characters,
+and the built_in function-call counts, 2357 in all, are:
+= -- 234
+> -- 137
+< -- 0
++ -- 57
+- -- 50
+* -- 189
+:= -- 471
+add.period$ -- 12
+call.type$ -- 6
+change.case$ -- 42
+chr.to.int$ -- 0
+cite$ -- 7
+duplicate$ -- 62
+empty$ -- 140
+format.name$ -- 50
+if$ -- 461
+int.to.chr$ -- 0
+int.to.str$ -- 6
+missing$ -- 6
+newline$ -- 35
+num.names$ -- 12
+pop$ -- 37
+preamble$ -- 1
+purify$ -- 37
+quote$ -- 0
+skip$ -- 39
+stack$ -- 0
+substring$ -- 145
+swap$ -- 5
+text.length$ -- 0
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 22
+warning$ -- 1
+while$ -- 19
+width$ -- 7
+write$ -- 67
+(There was 1 warning)

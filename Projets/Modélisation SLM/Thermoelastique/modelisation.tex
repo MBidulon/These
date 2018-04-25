@@ -1,0 +1,600 @@
+%----------------------------------------------------------------------------------------
+%	PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
+%----------------------------------------------------------------------------------------
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc} % to encode the document so that we can use more caracters (like Latin ones)
+\usepackage[T1]{fontenc} % to encode the document so that we can use more caracters (like Latin ones)
+\usepackage[english]{babel} % to write in English
+
+\usepackage{geometry} % the paper's format and marges
+\geometry{hmargin=2.3cm,vmargin=1.7cm}
+
+\usepackage{titling} % to put the title where I want
+
+% maths packages
+\usepackage{mathtools}
+\usepackage{amsmath,amsbsy}
+\usepackage{bm}
+\usepackage{bigints}
+\usepackage{stmaryrd}
+\usepackage{amsfonts}
+
+% graphs packages
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{wrapfig,epsfig}
+
+\usepackage{color}
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\newenvironment{proof}[1][Proof]{\begin{trivlist}
+		\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{definition}[1][Definition]{\begin{trivlist}
+		\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{example}[1][Example]{\begin{trivlist}
+		\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{remark}[1][Remark]{\begin{trivlist}
+		\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+
+\newcommand{\qed}{\nobreak \ifvmode \relax \else
+	\ifdim\lastskip<1.5em \hskip-\lastskip
+	\hskip1.5em plus0em minus0.5em \fi \nobreak
+	\vrule height0.75em width0.5em depth0.25em\fi}
+
+\usepackage{vmargin}
+\setmarginsrb{0.5cm}{0.5cm}{1cm}{1cm}{0cm}{0cm}{0cm}{0cm}
+
+\usepackage[final]{pdfpages}
+
+\usepackage{algorithm}
+\usepackage{algorithmic}
+%----------------------------------------------------------------------------------------
+%DOCUMENT
+%----------------------------------------------------------------------------------------
+
+\begin{document}
+\newcommand{\mathilde}[1]{\textbf{\textcolor{red}{#1}}}
+
+\newcommand{\mat}[1]{\underline{\underline{#1}}}
+\newcommand{\vct}[1]{\underline{#1}}
+
+\newcommand{\accUN}[1]{\left\{\begin{array}{l}#1\end{array}\right.}
+\newcommand{\accDEUX}[1]{\left\{\begin{array}{ll}#1\end{array}\right.}
+
+\newcommand{\dive}{\textrm{div}}
+\newcommand{\tr}{\textrm{tr}}
+\newcommand{\grad}{\textrm{grad}}
+
+
+\begin{center}
+	\textbf{Thermoelasticité}
+	
+	\cite{SalenconMecaniquemilieuxcontinus2001,ForestMecaniquemilieuxcontinus2015,SidoroffMecaniquemilieuxcontinus1980}
+\end{center}
+
+\section{Déformation et cinématique du milieu continu}
+On considère une transormation du milieu qui à un vecteur $\vct{X}$ du domaine de référence $\Omega_0$ associe un vecteur $x$ selon la relation :
+\begin{equation}
+\vct{x}=\vct{\phi}(\vct{x},t)
+\end{equation}
+
+\subsection{Déformation du milieu continu}
+
+\subsubsection{Grandes déformations}
+
+\begin{itemize}
+	\item gradient de la transformation $\phi$ :
+	\begin{equation}
+	\mat{F}(\vct{X},t)=\partial_{X_j}\phi_i(\vct{X},t)e_i\otimes e_j=\mat{\nabla\phi}(\vct{X},t)
+	\end{equation}
+	
+	\item transport :
+	\begin{itemize}
+		\item vecteur : \[\vct{dM}=\mat{F}(\vct{X},t).\vct{dM_0}\]
+		\item volume : \[d\Omega_t=\textrm{det}\left(\mat{F}(\vct{X},t)\right).d\Omega_0\]
+		\item surface orientée : \[\vct{da}=J(\vct{X},t)^t\mat{F}^{-1}(\vct{X},t)\vct{dA}\]
+	\end{itemize}
+	
+	\item déformation : \[\vct{dM}.\vct{dM'}=\vct{dM_0}\mat{C}(\vct{X},t)\vct{dM_0}'\] avec $\mat{C}(\vct{X},t)=^t\mat{F}(\vct{X},t)\mat{F}(\vct{X},t)$
+	\begin{itemize}
+		\item tenseur de Green-Lagrange : \[\mat{e}(\vct{X},t)=\frac{1}{2}\left(\mat{C}(\vct{X},t)-\mat{I}\right)\]
+		
+		\vspace{0cm}
+		
+		On a alors \[\vct{dM}.\vct{dM'}-\vct{dM_0}.\vct{dM_0}'=2\vct{dM_0}\mat{e}(\vct{X},t)\vct{dM_0}'\]
+	\end{itemize}
+	
+	\item déplacement : \[\vct{\xi}(\vct{X},t)=\vct{x}-\vct{X}\]
+	
+	\begin{equation*}
+	\begin{array}{l}
+	\mat{F}(\vec{X},t)=\mat{\nabla\phi}(\vct{X},t)=\mat{I}+\mat{\nabla\xi}(\vct{X},t) \\
+	\\
+	\mat{e}(\vec{X},t)=\frac{1}{2}\left(\mat{\nabla\xi}(\vct{X},t)+^t\mat{\nabla\xi}(\vct{X},t) +^t\mat{\nabla\xi}(\vct{X},t)\mat{\nabla\xi}(\vct{X},t)\right)
+	\end{array}
+	\end{equation*}
+\end{itemize}
+
+\subsubsection{Déformations infinitésimales}
+On prend pour hypothèse $\||\mat{\nabla\xi}(\vct{X},t)||<<1$. On a alors :
+\begin{itemize}
+	\item dérivation Lagrangienne-Eulerienne : $\mat{\nabla}=\mat{\textrm{grad}}$ (où $\nabla$ est le gradient par rapport aux variables de références et $\textrm{grad}$ par rapport aux actuelles). En effet :
+	\[\begin{array}{l}
+	\mat{T}_t(\vct{x},t)=\mat{T}(\vct{X},t)\quad\textrm{avec}\quad\vct{x}=\vct{X}+\vct{\xi}(\vct{X},t) \\
+	\\
+	\mat{\nabla T}(\vct{X},t)=\mat{\textrm{grad}T}(\vct{x},t)\mat{\nabla\phi}(\vct{X},t)=\mat{\textrm{grad}T}(\vct{x},t)+\mat{\textrm{grad}T}(\vct{x},t)\mat{\nabla\xi}(\vct{X},t)\approx\mat{\textrm{grad}T}(\vct{x},t)
+	\end{array}
+	\]
+	\item tenseur de Green Lagrange linéarisé (tenseur des déformations linéarisé). Ce tenseur est symétrique : \[\mat{\epsilon}(\vct{x},t)=\frac{1}{2}\left(\mat{\nabla\xi}(\vct{X},t)+^t\mat{\nabla\xi}(\vct{X},t)\right)\approx\frac{1}{2}\left(\mat{\textrm{grad}\xi}(\vct{X},t)+^t\mat{\textrm{grad}\xi}(\vct{X},t)\right)\]
+\end{itemize}
+
+\subsubsection{Conditions de compatibilités}
+La question est de savoir, à partir d'une matrice symétrique quelconque $\mat{\epsilon}$ si on est capable d'en déduire un champ de déplacement $\vct{\xi}$. On a pour vérifier ça une condition de compatibilité:
+\begin{equation*}
+\partial_{i,j}\epsilon_{k,l}+\partial_{k,l}\epsilon_{i,j}-\partial_{i,k}\epsilon_{j,l}-\partial_{j,l}\epsilon_{i,k}=0
+\end{equation*}
+
+
+\subsection{Cinématique du milieu continu}
+\subsubsection{Cas Lagrangien}
+On pose $\vct{\dot{x}}=\vct{U}(\vct{X},t)$. On avait $vct{dM}=\mat{F}(\vct{X},t).\vct{dM_0}$. En dérivant, on obtient :
+\[\dot{\vct{dM}}=\mat{\dot{F}}(\vct{X},t).\vct{dM_0}\] et donc :
+\[\mat{\dot{F}}(\vct{X},t)=\partial_t\mat{\nabla\phi}(\vct{X},t)=\mat{\nabla U}(\vct{X},t)\]
+
+\begin{itemize}
+	\item taux de déformation Lagrangien :
+	\[\dot{\mat{e}}(\vct{X},t)=\frac{1}{2}\left(^t\mat{\nabla U}(\vct{X},t).\mat{\nabla\phi}(\vct{X},t)+^t\mat{\nabla \phi}(\vct{X},t).\mat{\nabla U}(\vct{X},t)\right)\]
+\end{itemize}
+
+\subsubsection{Cas Eulérien}
+On a :
+\[\dot{\vct{dM}}=\mat{\dot{F}}(\vct{X},t).\vct{dM_0}=\mat{\dot{F}}(\vct{X},t)\mat{F}^{-1}(\vct{X},t)\vct{dM}=\mat{\nabla U}(\vct{X},t)\mat{F}^{-1}(\vct{X},t)\vct{dM}\]
+
+Or, $\mat{\nabla U}(\vct{X},t).\mat{F}^{-1}(\vct{X},t)=\mat{\textrm{grad}U}(\vct{x},t)$. D'où
+\[\dot{\vct{dM}}=\mat{\textrm{grad}U}(\vct{x},t).\vct{dM}\]
+
+\begin{itemize}
+	\item taux de déformation Eulérien :
+	\[\mat{d}(\vct{x},t)=\frac{1}{2}\left(^t\mat{\textrm{grad} U}(\vct{x},t)+\mat{\textrm{grad} U}(\vct{x},t)\right)\]
+\end{itemize}
+
+
+FIGURE LIVRE SALENÇON
+
+\subsection{Dérivation particulaire}
+\begin{itemize}
+	\item fonction scalaire : on pose $\mathcal{B}=b(\vct{x},t)=b\left(\vct{\phi}(\vct{X},t),t\right)=B(\vct{X},t)$ et $\vct{U}(\vct{x},t)=\vct{U}_{lag}(\vct{X},t)=\partial_t\vct{\phi}(\vct{X},t)$.
+	
+	On a alors :
+	\begin{equation*}
+	\dot{\mathcal{B}}=\partial_t b(\vct{x},t)+\textrm{grad}\,b(\vct{x},t).\vct{U}(\vct{x},t)=\frac{\textrm{d}b(\vct{x},t)}{\textrm{d}t}
+	\end{equation*}
+
+	\item fonction vectorielle : on pose $\vct{a}(\vct{x},t)=\vct{A}(\vct{X},t)$. On a alors 
+	\begin{equation*}
+	\dot{\vct{a}}=\partial_t \vct{a}(\vct{x},t)+\mat{\textrm{grad}\,a}(\vct{x},t).\vct{U}(\vct{x},t)
+	\end{equation*}
+	
+	\item intégrale sur le volume : on pose $\mathcal{I}=\int_{\Omega_t}bd\Omega_t$. On a alors 
+	\begin{equation*}
+	\dot{\mathcal{I}}=\int_{\Omega_t}\left(\partial_tb+\textrm{grad}\,b.\vct{U}+b\,\textrm{div}\vct{U}\right)d\Omega_t=\int_{\Omega_t} \partial_tb d\Omega_t+\int_{\partial\Omega_t}b\vct{U}\cdot\vct{n}ds
+	\end{equation*}
+	
+\end{itemize}
+\section{Equation de bilans, lois de conservation}
+
+\subsection{Bilan thermomécanique}
+On fait le bilan de ce qui s'exerce sur le volume $\Omega$. 
+\begin{itemize}
+	\item Volumique :
+	\begin{itemize}
+		\item force volumique $f_v$.
+		\item densité de chaleur produite $r$.
+	\end{itemize}
+	\item Surfacique (sur la surface $\partial\Omega$ de normale $\vct{n}$):
+	\begin{itemize}
+		\item force surfacique $\vct{T}=\mat{\sigma}\vct{n}$.
+		\item flux de chaleur $\vct{q}$
+	\end{itemize}
+\end{itemize}
+
+\subsection{Equations de conservation}
+\subsubsection{Masse}
+On a conservation de la masse totale du volume ce qui nous donne les équations suivantes (globale et locale), avec $\vct{U}$ la vitesse Eulérienne :
+
+\begin{equation}
+\label{eq:consmasse}
+\boxed{
+\begin{array}{l}
+\frac{d}{dt}\int{\Omega_t}\rho dv=0 \\
+\\
+\partial_t \rho+\rho div\vct{U}=0
+\end{array}
+}
+\end{equation}
+
+\subsubsection{Quantité de mouvement}
+\begin{equation}
+\label{eq:consmvt}
+\boxed{\begin{array}{l}
+\frac{d}{dt}\int_{\Omega_t}\rho\vct{U}dv-\int_{\partial\Omega_t}\vct{T}ds-\int_{\Omega_t}\vct{f}dv=\frac{d}{dt}\int_{\Omega_t}\rho\vct{U}dv-\int_{\Omega_t}\textrm{div}(\mat{\sigma})ds+\int_{\Omega_t}\vct{f}dv=0\\
+\\
+\rho\left(\partial_t\vct{U}+\left(\textrm{div}(\vct{U})\vct{U}\right)\right)=\rho\frac{d\vct{U}}{dt}=\textrm{div}(\mat{\sigma})+f
+\end{array}}
+\end{equation}
+
+\subsubsection{Théorème de l'énergie cinétique}
+On pose $K$ l'énergie cinétique :
+\begin{equation}
+K=\int_{\Omega_t}\rho\frac{1}{2}\vct{U}\cdot\vct{U}v
+\end{equation}
+
+On note $P^{e}$ et $P^{i}$ les puissances extérieures et intérieures exercées sur le solide. On explicite ici $P^{i}$ (avec $\mat{d}$ le taux de déformation Eulérien) :
+\begin{equation}
+P^{i}=-\int_{\Omega_t}\mat{\sigma}:\mat{d}dv
+\end{equation}
+
+On a alors le théorème suivant :
+\begin{equation}
+\frac{d}{dt}K=P^{e}+P^{i}
+\end{equation}
+
+\subsection{Thermodynamique}
+\subsubsection{Premier principe}
+On note $E$ l'énergie interne et $e_en$ l'énergie interne massique. On note $Q$ la chaleur reçue par le système. On a alors :
+\begin{equation}
+\frac{d}{dt}\left(K+E\right)=P^{e}+Q
+\end{equation}
+
+On en déduit donc grâce au théorème de l'énergie cinétique que :
+\begin{equation}
+\frac{d}{dt}E=Q-P^{i}
+\end{equation}
+
+Or, $Q=\int_{\Omega_t}rdv+\int_{\partial\Omega_t}(-\vct{q}{n})ds$. On a alors :
+
+\begin{equation}
+\label{eq:consenergie}
+\boxed{\frac{d}{dt} e_{en}=\mat{\sigma}:\mat{d}+r-\textrm{div}\vct{q} }
+\end{equation}
+
+\subsubsection{Second principe : loi de Clausius Duheim}
+En notant $T$ la température, $S$ l'entropie et $s$ l'entropie massique, on a 
+\begin{equation}
+\begin{array}{l}
+\frac{dS}{dT}\geq\frac{Q}{T}=-\int_{\partial\Omega_t}\frac{\vct{q}\cdot\vct{n}}{T}ds+\int_{\Omega_t}\frac{r}{T}dv \\
+\\
+\rho\frac{d}{dt}s+\textrm{div}\left(\frac{\vct{q}}{T}\right)-\frac{r}{T}\geq 0
+\end{array}
+\end{equation}
+
+En utilisant le premier principe pour éliminer $r$ et en posant $\psi$ l'énergie libre massique ($\psi=e_{en}-Ts$), on obtient l'inégalité de Clausius-Duheim:
+\begin{equation}
+\label{eq:clausiusduheim}
+\boxed{\mat{\sigma}:\mat{d}-\rho\left(\frac{d\psi}{dt}+s\frac{dT}{dt}\right)-\frac{\vct{q}}{T}\cdot\vct{\textrm{grad}\,T}\geq 0}
+\end{equation}
+
+\subsection{Passage des équations énergétiques en Lagrangien}
+
+On rappelle les formules de transport :
+
+\begin{equation}
+\accUN{
+\vct{x}=\vct{X}+\vct{\xi}(\vct{X},t) \\
+\\
+\mat{F}(\vct{X},t)=\mat{1}+\mat{\nabla\xi}(\vct{X},t)\\
+\\
+\mat{e}(\vct{X},t)=\frac{1}{2}\left(^t\mat{F}(\vct{X},t)\cdot \mat{F}(\vct{X},t)-\mat{1}\right) \\
+\\
+\mat{\pi}(\vct{X},t)=\frac{\rho_0(\vct{X})}{\rho(\vct{x},t)}\mat{F}^{-1}(\vct{X},t)\cdot\mat{\sigma}(\vct{x},t)\cdot ^t\mat{F}^{-1}(\vct{X},t)
+	}
+\end{equation}
+
+
+De plus, les grandeurs thermodynamiques sont liées à la matière et les fonctions ne sont donc pas modifiées :
+
+\begin{equation}
+\accUN{
+	T_{lag}(\vct{X},t)=T(\vct{x},t)\\
+	\\
+	\mat{e}_{lag}(\vct{X},t)=\mat{e}(\vct{x},t)\\
+	\\
+	\mat{s}_{lag}(\vct{X},t)=\mat{s}(\vct{x},t)
+}
+\end{equation}
+
+On en déduit donc l'expression Lagrangienne de l'équation de l'énergie \ref{eq:consenergie} :
+
+\begin{equation}
+\label{eq:consenergieLag}
+\boxed{\rho_0\dot{e_{en}}=\mat{\pi}:\mat{\dot{e}}+r_0-\dive_{\vct{X}}\vct{q_0}}
+\end{equation}
+
+et l'inélagité de Clausius Duheim Lagrangienne :
+
+\begin{equation}
+\label{eq:clausiusduheimLag}
+\boxed{\mat{\pi}:\mat{\dot{e}}-\rho_0\left(\dot{\psi}+s\dot{T}\right)-\frac{\vct{q_0}}{T}\dot{\vct{\nabla T}}\geq 0}
+\end{equation}
+
+\section{Loi de comportement}
+
+\subsection{Hypothèse}
+On suppose que l'énergie interne massique, l'entropie massique, l'énergie libre massique et le tenseur des contraintes de Piola-Kirchhoff ne dépendent que de la température et du tenseur des déformations $\mat{e}(\vct{X},t)$.
+
+\subsection{Loi de comportement en l'absence de liaisons internes}
+
+On a $\psi=\psi(T,\mat{e})$ d'où 
+
+\begin{equation}
+\dot{\psi}=\partial_T\psi(T,\mat{e})\dot{T}+\sum_{i,j}\partial_{e_{i,j}}\psi(T,\mat{e})\dot{e_{i,j}}=\partial_T\psi(T,\mat{e})\dot{T}+\partial_{\mat{e}}\psi(T,\mat{e})\dot{\mat{e}}
+\end{equation}
+
+On a alors une nouvelle formulation de l'équation de Clausius Duheim ($\mat{e}$ et $\dot{\mat{e}}$ sont symétriques):
+
+\begin{equation}
+\mat{\pi}(T,\mat{e}):\mat{\dot{e}}-\rho_0\left(\partial_T\psi(T,\mat{e})\dot{T}+\partial_{\mat{e}}\psi(T,\mat{e})\dot{\mat{e}}+s(T,\mat{e})\dot{T}\right)-\frac{\vct{q_0}}{T}\cdot\vct{\nabla T}\geq 0
+\end{equation}
+
+La première partie est une forme linéraire en $\dot{T}$ et $\dot{\mat{e}}$. En les prenant nuls, on en déduit que la dissipation thermique est non négative (inégalité de conduction) : \[-\vct{q_0}\cdot\vct{\nabla T}\geq 0\].
+
+La forme linéraire doit garder un signe constant \mathilde{Pourquoi ça??} en on en déduit qu'elle est constante et donc toujours nulle \mathilde{encore pourquoi?} :
+
+\begin{equation}
+\accUN{
+	\forall\,\mat{e},\dot{\mat{e}}\,\textrm{symetrique},\,\forall\,T,\,\dot{T} \\
+	\mat{\pi}(T,\mat{e}):\mat{\dot{e}}-\rho_0\left(\partial_T\psi(T,\mat{e})\dot{T}+\partial_{\mat{e}}\psi(T,\mat{e})\dot{\mat{e}}+s(T,\mat{e})\dot{T}\right)=0
+}	
+\end{equation}
+
+On en déduit alors (avec un peu de travail sur la symétrie de l'énergie libre) que 
+\begin{equation}
+\label{eq:comportementT}
+\boxed{\forall T,\forall\mat{e}\,\textrm{symetrique},\qquad s(T,\mat{e})=-\partial_T\psi(T,\mat{e})}
+\end{equation}
+
+\begin{equation}
+\label{eq:comportemente}
+\boxed{\forall T,\forall\mat{e}\,\textrm{symetrique},\qquad \mat{\pi}(T,\mat{e})=\rho_0\partial_{\mat{e}}\psi(T,\mat{e})}
+\end{equation}
+
+\subsection{Loi de comportement avec liaison interne}
+
+On a alors 
+
+\begin{equation}
+\boxed{-\vct{q_0}\cdot\vct{\nabla T}\geq 0}
+\end{equation}
+
+\begin{equation}
+\boxed{\forall T,\forall\mat{e}\,\textrm{symetrique},\qquad s(T,\mat{e})=-\partial_T\psi(T,\mat{e})}
+\end{equation}
+
+\begin{equation}
+\boxed{\forall T,\forall\mat{e}\,\textrm{symetrique\,\,tel\,\,que\,\,}\forall p\in\llbracket 1,n\rrbracket \,(1\leq n\leq 6)\,\phi_p(\mat{e})=0,\qquad \mat{\pi}(T,\mat{e})=\rho_0\partial_{\mat{e}}\psi(T,\mat{e})+\sum_p\partial_{\mat{e}}\phi_p(\mat{e})}
+\end{equation}
+
+
+\subsection{Hypothèses en thermoélasticité}
+
+\subsubsection{Hypothèses de linéarisation}
+
+\begin{itemize}
+	\item hypothèse de la transformation infinitésimale = petits déplacements :
+	\begin{equation}
+	\|\mat{\nabla\xi}(\vct{X},t)\|<<1\quad\textrm{sur\,}\Omega_0
+	\end{equation}
+	Cette hypothèse entraine celle de la déformation infinitésimale = petites déformations :
+	\begin{equation}
+	\|\mat{e}(\vct{X},t)\|<<1\quad \textrm{sur\,}\Omega_0
+	\end{equation}
+	
+	\item hypothèse des petites variations de température : $\tau(\vct{x},t)=|T(\vct{x},t)-T_0|$ petit sur $\Omega_t$.
+	
+	\item hypothèse des petits déplacements : on peut confondre la géométrie actuelle avec la géométrie de référence.
+	
+	\item hypothèses des petites perturbations (HPP) : rassemble les trois hypothèses précédentes.
+\end{itemize}
+
+\subsubsection{Isotropie} 
+Il n'y a pas de direction privilégiée. L'énergie libre ne dépend donc que des invariants de la matrice de déformation :
+\[\psi=\psi(T,I_1,I_2,I_3)\]
+avec \[I_1=\tr\mat{e};\qquad I_2=\frac{1}{2}\tr \mat{e}^2; \qquad I_3=\frac{1}{3}\tr \mat{e}^3\,.\]
+Pour un matériau avec liaisons internes, on a alors 
+\begin{equation}
+\mat{\pi}=\rho_0\left(\partial_{I_1}\psi \,\mat{1}+\partial_{I_2}\psi\,\mat{e}+\partial_{I_3}\psi\,\mat{e}^2\right)+\sum_p \eta_p\left(\partial_{I_1}\phi_1 \,\mat{1}+\partial_{I_2}\phi_p\,\mat{e}+\partial_{I_3}\phi_p\,\mat{e}^2\right)
+\end{equation}
+
+\subsection{Simplification des lois de comportement}
+
+\subsubsection{Sous transformation infinitésimale et petites variations de températures}
+On sait que $\rho_0 \psi$ ne dépend que de $\mat{e}$ et de $T-T_0$ qui sont proches de 0. On a donc le développement suivant :
+\begin{equation}
+\rho\psi(T,\mat{e})=cste+\mat{\pi_0}:\mat{e}-\rho_0s_0\tau+\frac{1}{2}\mat{e}:\mat{\mat{A}}:\mat{e}-\mat{k}:\mat{e}\tau-\frac{1}{2}\rho_0b\tau^2
+\end{equation}
+
+On déduit alors des lois de comportement que 
+
+\begin{equation}
+\boxed{\accUN{
+\mat{\pi}=\mat{\pi_0}+\mat{\mat{A}}:\mat{e}-\mat{k}T \\
+\\ 
+s=s_0+\frac{1}{\rho_0}\mat{k}:\mat{e}+b\tau		
+}}
+\end{equation}
+
+avec $\mat{\pi_0}$ et $s_0$ les contraintes et l'entropie initiales.
+
+\vspace{0cm}
+
+On a utilisé pour l'instant que l'aspect petite déformation de l'hypothèse de transformation infinitésimale. On rajoute maintenant l'hypothèse $\|\mat{\nabla\xi}\|<<1$. On a alors 
+\begin{equation}
+\accUN{
+	\mat{e}\approx\mat{\epsilon}=\left(\mat{\nabla\xi}+^t\mat{\nabla\xi}\right)/2\approx \left(\mat{\grad\xi}+^t\mat{\grad\xi}\right)/2 \\
+	\\
+	\frac{\rho}{\rho_0}\approx (1-\tr\,\mat{\epsilon}) \\
+	\\
+	\mat{\sigma}\approx \mat{\pi_0}(1-\tr\,\mat{\epsilon})+\mat{\grad\,\xi}\cdot\mat{\pi_0}+\mat{\pi_0}\cdot\mat{\grad\,\xi}+\mat{\mat{A}}:\mat{\epsilon}-\mat{k}\tau
+	}
+\end{equation}
+
+\subsection{Etat initial naturel}
+A l'état initial naturel, on a 
+\begin{equation}
+\mat{\pi}=0;\qquad \mat{e}=0; \qquad \tau=0
+\end{equation}
+
+d'où, $\mat{\pi_0}=0$ et donc 
+\begin{equation}
+\mat{\sigma}\approx\mat{\mat{A}}:\mat{\epsilon}-\mat{k}\tau
+\end{equation}
+
+\subsubsection{Isotropie}
+En ajoutant l'hypothèse d'isotropie, on a enfin :
+
+\begin{equation}
+\boxed{\accUN{
+		\mat{\sigma}=\lambda(\tr\,\mat{\epsilon})\mat{1}+2\mu\mat{\epsilon}-k\tau\mat{1}\\
+		\\
+		\mat{\epsilon}=\frac{1+\nu}{E}\mat{\sigma}-\frac{\nu}{E}(\tr\,\mat{\sigma})\mat{1}+\alpha\tau\mat{1}
+		}}
+\end{equation}
+
+avec $\lambda$, $\mu$ les coefficients de Lamé, $\nu$ le coefficient de Poisson, $E$ le module d'Young et $\alpha$ le coefficient de dilatation thermique.
+
+
+\subsection{Etat précontraint}
+On ajoute une contrainte constante $\mat{\sigma_P}$ à la contrainte $\mat{\sigma}$ et on calcule la déformation infinitésimale liée à $\mat{\sigma'}=\mat{\sigma}-\mat{\sigma_P}$
+
+
+\section{Résolution du problème d'évolution de la thermoélasticité}
+On a un problème avec au moins 11 inconnues :
+\begin{itemize}
+	\item 6 inconnues pour le tenseur des contraintes $\mat{\sigma}$
+	\item 3 inconnues pour le déplacement $\vct{\xi}$
+	\item 1 inconnue pour la masse volumique $\rho$
+	\item 1 inconnue pour la température $T$
+\end{itemize}
+
+On a donc besoin de au moins 11  équations.
+
+\subsection{Hypothèse quasistatique}
+On se place dans une hypothèse quasistatique pour l'élastictité (pas pour la chaleur a priori) \mathilde{C'est bien ça non? Sinon on doit considérer l'équation de le chaleur stationnaire ce qui est faux car on bouge la source}. On néglige donc les termes inertiels et on consière 
+\begin{equation}
+	\vct{a}(\vct{x},t)=0
+\end{equation}
+
+On n'a alors besoin que de 11 équations et celles-ci sont données par :
+
+\begin{itemize}
+	\item les équations de la dynamique (3) :
+	\begin{equation}
+	\accDEUX{
+		\dive \mat{\sigma}(\vct{x},t)+\rho(\vct{x},t)\vct{f}(\vct{x},t)=0 & \textrm{sur\,}\Omega_t \\
+		\textrm{conditions\,\,aux\,\,limites} & \,
+		}
+	\end{equation}
+	
+	\item l'équation de continuité (1) :
+	\begin{equation}
+	\frac{\rho_0(\vct{X})}{\rho(\vct{X})}=\textrm{det\,}\mat{F}(\vct{X},t)
+	\end{equation}
+	
+	\item la loi de comportement thermoélastique (6) :
+	\begin{equation}
+	\mat{\pi}(T,\mat{e})=\rho_0\partial_{\mat{e}}\psi(T,\mat{e})+\sum_p\partial_{\mat{e}}\phi_p(\mat{e})
+	\end{equation}
+	
+	\item la deuxième équation de comportement et la conservation de l'énergie donnent l'équation de la chaleur :
+	\begin{equation}
+	\accUN{
+		\rho_0\dot{e_{en}}-\mat{\pi}:\mat{\dot{e}}+\dive_{\vct{X}}\vct{q_0}+r_0=0 \\
+		\\
+			\rho_0\dot{e_{en}}-\mat{\pi}:\mat{\dot{e}}=\rho_0T\dot{s}
+		}
+	\end{equation}
+	
+	Or, 
+	\begin{equation}
+	s(T,\mat{e})=-\partial_T\psi(T,\mat{e})
+	\end{equation}
+	
+	d'où en dérivant $s$ et en utilisant les lois de comportement,
+	
+	\begin{equation}
+	T\frac{\partial\mat{\pi}(T,\mat{e})}{\partial T}:\mat{\dot{e}}+\rho_0T\frac{\partial\psi(T,\mat{e})}{\partial T^2}\dot{T}-\dive _{\vct{X}}\vct{q_0}=r_0
+	\end{equation}
+	
+	On ajoute à ça la loi de Fourier avec $\mat{K_0}$ le tenseur de conductivité thermique :
+	\begin{equation}
+	\vct{q_0}=-\mat{K_0}(T,\mat{e})\cdot\vct{\nabla T}
+	\end{equation}
+	
+	On obtient alors l'équation thermique \mathilde{(C'est là qu'intervient le gradient de T a priori. Nous, on découple les équations mais c'est faux)} à laquelle on ajoute les conditions aux limites pour la chaleur :
+	\begin{equation}
+	\boxed{
+		T\frac{\partial\mat{\pi}(T,\mat{e})}{\partial T}:\mat{\dot{e}}+\rho_0T\frac{\partial\psi(T,\mat{e})}{\partial T^2}\dot{T}+\dive _{\vct{X}}\left(\mat{K_0}(T,\mat{e})\cdot\vct{\nabla T}\right)=r_0
+			}
+	\end{equation}
+\end{itemize}
+
+Dans le cas de la thermoélasticité découplée, on néglige $T\frac{\partial\mat{\pi}(T,\mat{e})}{\partial T}:\mat{\dot{e}}$. On peut enfin considérer le cas stationnaire pour lequel $\dot{T}=0$.
+
+
+\subsection{Linéarisation}
+On se met sous l'hypothèse HPP : 
+\begin{itemize}
+	\item $\|\mat{\nabla\xi}(\vct{X},t)\|<<1 \implies \|\mat{e}(\vct{X},t)\|<<1 $
+	\item $\tau(\vct{x},t)$ "petit" 
+	\item "petits" déplacements
+\end{itemize}
+
+On a alors :
+
+\begin{itemize}
+	\item les équations de la dynamique (3) :
+	\begin{equation}
+	\accDEUX{
+		\dive \mat{\sigma}(\vct{x},t)+\rho(\vct{x},t)\vct{f}(\vct{x},t)=0 & \textrm{sur\,}\Omega_t \\
+		\textrm{conditions\,\,aux\,\,limites} & \,
+	}
+	\end{equation}
+	
+	\item l'équation de continuité (1) :
+	\begin{equation}
+	\rho(\vct{x},t)=\rho_0(\vct{x})\left(1-\tr\,\mat{\epsilon}(\vct{x)}t)\right)
+	\end{equation}
+	
+	\item la loi de comportement thermoélastique (6) :
+	\begin{equation}
+	\accUN{
+		\mat{\sigma}(\vct{x},t)=\mat{\sigma_0}+\mat{\mat{A}}(\vct{x}):\mat{\epsilon}(\vct{x},t)-\mat{k}(\vct{x})\tau(\vct{x},t) \\
+		\\
+		\mat{\epsilon}(\vct{x},t)=\left(\mat{\grad\,\xi}(\vct{x},t)+^t\mat{\grad\,\xi}(\vct{x},t)\right)/2
+		}
+	\end{equation}
+	
+	\item la deuxième équation de comportement et la conservation de l'énergie donnent l'équation thermique :
+
+	\begin{equation}
+	\boxed{
+		T\frac{\partial\mat{\sigma}}{\partial T}:\mat{\dot{\epsilon}}-b\dot{T}+\dive \left(\mat{K_0}\cdot\vct{\nabla T}\right)=r_0
+	}
+	\end{equation}
+\end{itemize}
+
+
+
+
+
+\bibliographystyle{plain-fr}
+\bibliography{Thermoelasticite}
+
+\end{document}
