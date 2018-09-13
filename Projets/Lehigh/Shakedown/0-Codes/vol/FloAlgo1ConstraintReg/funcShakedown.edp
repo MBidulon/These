@@ -1,0 +1,128 @@
+/* ----------------------------------------------------------------------------- */
+/* -------------------------------- STORAGE ------------------------------------ */
+/* ----------------------------------------------------------------------------- */
+
+/* ------- Storage of informations ------- */
+func string pathRes(string case, int n, string ini, int kx, int ky, string deltatIniS, string tolMeritS, string AjS, string AcS, string coefAlphaS, int n0, int maxTrials, string E, string poisson, string yields){
+	string pathResults = "/Users/mathilde/These/Projets/Lehigh/Shakedown/2-Results";
+	pathResults = pathResults + "/vol";
+	exec("mkdir " + pathResults);
+	pathResults = pathResults + "/FloAlgo1ConstraintReg";
+	exec("mkdir " + pathResults);
+	pathResults = pathResults + "/"+case+"_"+n;
+	exec("mkdir " + pathResults);
+	pathResults = pathResults + "/"+ini+"_kx"+kx+"ky"+ky;
+	exec("mkdir " + pathResults);
+	pathResults = pathResults + "/E"+E+"_poi"+poisson+"_ys"+yields;
+	exec("mkdir " + pathResults);
+	pathResults = pathResults + "/dt" + deltatIniS + "_tol" + tolMeritS + "_coefAlpha" + coefAlphaS;
+	exec("mkdir " + pathResults);
+	pathResults = pathResults + "/Aj" + AjS + "_Ac" + AcS;
+	exec("mkdir " + pathResults);
+	pathResults = pathResults + "/n0" + n0 + "_maxTr" + maxTrials;
+	exec("mkdir " + pathResults);
+	exec("cp parameters.edp " + pathResults + "/parameters.edp");
+	return(pathResults);
+}
+
+
+/* ----------------------------------------------------------------------------- */
+/* ------------------------------------ MESH ----------------------------------- */
+/* ----------------------------------------------------------------------------- */
+
+/* Mesh creation : n = nb elements, case = to choose if cantilever, bridge, ..., pathAnnex = where to store the mesh */
+macro meshCreation (Th, n, case, pathAnnex, plotIndice){
+	if(case=="cantilever_long"){
+			meshBuildingCantileverLong(Th,n);
+	}
+	if(case=="cantilever_short"){
+			meshBuildingCantileverShort(Th,n);
+	}
+	savemesh(Th, pathAnnex+"/templvs.mesh");
+	exec("cat "+pathAnnex+"/templvs.mesh | sed 's/MeshVersionFormatted 0/MeshVersionFormatted 1/' > toto.mesh");
+	exec("mv toto.mesh "+pathAnnex+"/templvs.mesh");
+	if(plotIndice==1){plot(Th);}
+}//EOM
+
+
+
+
+/* ----------------------------------------------------------------------------- */
+/* ------------------------------- INITIALISATION ------------------------------ */
+/* ----------------------------------------------------------------------------- */
+
+/* ini phi. case : if cantilever, bridge, ..., ini : 1 = classic ini linkes to the chosen case, 2 = load a lvlset function */
+	macro initialisation(phi, case, ini, kx, ky, file, np, dummy, loadsol){
+		if(case=="cantilever_long"){
+			if(ini=="classic"){phi = symInitialisation1CantileverLong(kx,ky);}
+			if(ini=="aymeric"){phi = symInitialisation2CantileverLong(kx,ky);}
+			if(ini=="solution"){
+				{ifstream f(file);
+				for(int i=0; i<8; i++) {
+					f>>dummy;
+				}
+				for(int i=0; i<np; i++) {
+						f>>loadsol[i];
+				}
+				phi[] = loadsol;}
+			}
+		}
+		if(case=="cantilever_short"){
+			if(ini=="classic"){phi = symInitialisation1CantileverShort(kx,ky);}
+			if(ini=="aymeric"){phi = symInitialisation2CantileverShort(kx,ky);}
+			if(ini=="solution"){
+				{ifstream f(file);
+				for(int i=0; i<8; i++) {
+					f>>dummy;
+				}
+				for(int i=0; i<np; i++) {
+						f>>loadsol[i];
+				}
+				phi[] = loadsol;}
+			}
+		}
+	}//EOM
+
+
+
+	/* ----------------------------------------------------------------------------- */
+	/* ----------------------------------- ALM ----------------------------------- */
+	/* ----------------------------------------------------------------------------- */
+
+	/* apply Hooke's law A : AM = 2*mu*M+lambda*tr(M)*I */
+	macro computeStress (outxx,outxy,outyx,outyy,inxx,inxy,inyx,inyy,lambda,mu){
+		[outxx,outxy,outyx,outyy] = [(2*mu+lambda)*inxx+lambda*inyy,2*mu*inxy,2*mu*inyx,(2*mu+lambda)*inyy+lambda*inxx];
+	}//EOM
+
+	/* Von Mises law */
+	macro VonMisesCompute (VM,inxx,inxy,inyx,inyy){
+		VM = sqrt(0.5*(inxx-inyy)^2.+inxy^2.+inyx^2.);
+	}//EOM
+
+	/* gradient of Von Mises law */
+	macro gradVM (gradVMxx, gradVMxy, gradVMyx, gradVMyy, rhoxx,rhoxy,rhoyx,rhoyy, VM, eps1){
+		[gradVMxx, gradVMxy, gradVMyx, gradVMyy] = [(rhoxx-rhoyy)/(2*VM+eps1),rhoxy/(VM+eps1),rhoyx/(VM+eps1),(rhoyy-rhoxx)/(2*VM+eps1)];
+	}//EOM
+
+
+	func real hreg(real x, real epsilon){
+		real res = 0.;
+		if(x>=-epsilon && x<=epsilon){
+			res = 0.5*(x+x^2./(2*epsilon)-epsilon*cos(pi*x/epsilon)/(pi*pi)+epsilon*(0.5-1/(pi*pi)));
+		}
+		if(x>epsilon){
+			res = x;
+		}
+		return(res);
+	}
+
+	func real hregPrime(real x, real epsilon){
+		real res = 0.;
+		if(x>=-epsilon && x<=epsilon){
+			res = 0.5*(1+x/epsilon-sin(pi*x/epsilon)/pi);
+		}
+		if(x>epsilon){
+			res = 1.;
+		}
+		return(res);
+	}

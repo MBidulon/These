@@ -1,0 +1,522 @@
+load "medit" //pour freefem
+load "iovtk" //pour paraview
+load "distance"
+
+include "parameters.edp"  //parameters
+include "funcShakedown.edp"  //parameters
+
+include "../../../../configuration_files/meshes_2D/cantilever_mesh_short.edp"
+include "../../../../configuration_files/meshes_2D/cantilever_mesh_long.edp"
+
+
+/* ----------------------------------------------------------------------------- */
+/* --------------------------- STORAGE INFORMATION ----------------------------- */
+/* ----------------------------------------------------------------------------- */
+	string pathResults = pathRes(case,n,ini,kx,ky,deltatIniS,tolMeritS,AjS,AcS,coefAlpha,n0,maxTrials,EyoungS,poissonS,yieldstressS);
+	string pathGraph = pathResults + "/graph";
+	string pathGraphpngPhi = pathResults + "/graphpngPhi";
+	string pathGraphpngRhoxx = pathResults + "/graphpngRhoxx";
+	string pathGraphpngRhoxy = pathResults + "/graphpngRhoxy";
+	string pathGraphpngRhoyx = pathResults + "/graphpngRhoyx";
+	string pathGraphpngRhoyy = pathResults + "/graphpngRhoyy";
+	exec("mkdir " + pathGraph);
+	exec("mkdir " + pathGraphpngPhi);
+	exec("mkdir " + pathGraphpngRhoxx);
+	exec("mkdir " + pathGraphpngRhoxy);
+	exec("mkdir " + pathGraphpngRhoyx);
+	exec("mkdir " + pathGraphpngRhoyy);
+	string pathAnnex = "/Users/mathilde/These/Projets/Lehigh/Elasticity/1-AnnexFiles";
+	string pathLast;
+
+
+/* ----------------------------------------------------------------------------- */
+/* ------------------------------------ MESH ----------------------------------- */
+/* ----------------------------------------------------------------------------- */
+	/* Mesh and finite elements*/
+		mesh Th;
+		meshCreation (Th, n, case, pathAnnex, plotIndice);
+
+		/* Finite element spaces */
+		fespace Vh1(Th,P1); fespace Vh0(Th,P0);
+		fespace Vh12(Th,[P1,P1]); fespace Vh02(Th,[P0,P0]);
+		fespace Vh14(Th,[P1,P1,P1,P1]); fespace Vh04(Th,[P0,P0,P0,P0]);
+		Vh1 aux1; Vh0 aux0; Vh12 [aux12x,aux12y]; Vh02 [aux02x,aux02y];
+		Vh14 [aux14xx,aux14xy,aux14yx,aux14yy]; Vh04 [aux04xx,aux04xy,aux04yx,aux04yy];
+
+		/* About the mesh */
+		Vh0 meshSizes=hTriangle;
+		real meshsiz=meshSizes[].max; //maximal length of edges
+		int np=Th.nv; int nt=Th.nt; real alpha=meshsiz; //np = # nodes, nt = # elements, alpha : for velocity regularization
+		real[int] loadsol(np); string dummy, svol;
+
+
+/* ----------------------------------------------------------------------------- */
+/* -------------------------- VARIABLES INITIALISATION ------------------------- */
+/* ----------------------------------------------------------------------------- */
+	/* variables of the optimization problem */
+		Vh1 phi,phiTest,redist;
+		Vh04 [rhoxx,rhoxy,rhoyx,rhoyy], [rhoTestxx, rhoTestxy, rhoTestyx, rhoTestyy];
+		Vh12 [rhoPx,rhoPy];
+		problem projection([rhoPx,rhoPy],[aux12x,aux12y]) = int2d(Th)(dx(rhoPx)*dx(aux12x)+dy(rhoPy)*dy(aux12y)+(dx(rhoPy)+dy(rhoPx))*(dx(aux12y)+dy(aux12x))/2.)
+																												- int2d(Th)(rhoTestxx*dx(aux12x)+rhoTestyy*dy(aux12y)+rhoTestxy*(dx(aux12y)+dy(aux12x))/2.+rhoTestyx*(dx(aux12y)+dy(aux12x))/2.)
+																												+ on(2,rhoPx=0,rhoPy=0);
+
+  /* elasticity problem */
+		Vh1 X;
+		Vh12 [ux,uy];
+		Vh04 [Euxx,Euxy,Euyx,Euyy], [sigmaExx, sigmaExy, sigmaEyx, sigmaEyy];
+		real mu=Eyoung/(2*(1+poisson));
+		real lambda = Eyoung*poisson/((1+poisson)*(1-2*poisson));
+		problem elas([ux,uy],[aux12x,aux12y]) = int2d(Th)(2*mu*X*(dx(ux)*dx(aux12x)+dy(uy)*dy(aux12y)+(dx(uy)+dy(ux))*(dx(aux12y)+dy(aux12x))/2)
+													+ lambda*X*(dx(ux)+dy(uy))*(dx(aux12x)+dy(aux12y))   )
+													- int1d(Th,1)(gx*aux12x+gy*aux12y)+ on(2,ux=0,uy=0);
+
+		Vh04 [sigmaERhoxx, sigmaERhoxy, sigmaERhoyx, sigmaERhoyy];
+
+	/* objective function and constraint */
+		real J, JTest, S1, S1Test, S2, S2Test;
+		Vh0 VM1, VM2, toIntegrateS1, toIntegrateS2;
+
+	/* gradJ computation */
+		Vh0 grhJ;
+		Vh1 gradJshape;
+		Vh04 [gradJrhoxx,gradJrhoxy,gradJrhoyx,gradJrhoyy];
+		problem computeGradJV (gradJshape, aux1) = int2d(Th)(alpha*coefAlpha*(dx(gradJshape)*dx(aux1)+dy(gradJshape)*dy(aux1))+gradJshape*aux1)-int1d(Th, levelset=phiTest)(grhJ*aux1)+on(1,gradJshape = 0)+on(2,gradJshape = 0);
+
+	/* computation of derivative for S1 */
+		Vh0 grhS1;
+		Vh1 DS1tauShape;
+		problem computeDS1tauShape (DS1tauShape, aux1) = int2d(Th)(alpha*coefAlpha*(dx(DS1tauShape)*dx(aux1)+dy(DS1tauShape)*dy(aux1))+DS1tauShape*aux1)-int1d(Th, levelset=phiTest)(grhS1*aux1)+on(1,DS1tauShape = 0)+on(2,DS1tauShape = 0);
+		Vh04 [gradVM1xx, gradVM1xy, gradVM1yx, gradVM1yy], [DS1tauRhoxx, DS1tauRhoxy, DS1tauRhoyx, DS1tauRhoyy];
+
+	/* computation of derivative for S2 */
+		Vh0 grhS2;
+		Vh04 [gradVM2xx, gradVM2xy, gradVM2yx, gradVM2yy], [rhsAdjP0xx,rhsAdjP0xy,rhsAdjP0yx,rhsAdjP0yy];
+		Vh12[px,py];
+ 		Vh04 [Epxx,Epxy,Epyx,Epyy];
+		problem adjoint([px,py],[aux12x,aux12y]) = int2d(Th)(2*mu*X*(dx(px)*dx(aux12x)+dy(py)*dy(aux12y)+(dx(py)+dy(px))*(dx(aux12y)+dy(aux12x))/2)
+				 											  															+ lambda*X*(dx(px)+dy(py))*(dx(aux12x)+dy(aux12y)))
+																						 + int2d(Th)(X*(rhsAdjP0xx*dx(aux12x)+rhsAdjP0xy*(dx(aux12y)+dy(aux12x))/2.+rhsAdjP0yx*(dx(aux12y)+dy(aux12x))/2.+rhsAdjP0yy*dy(aux12y)))
+				 																		 + on(2,px=0,py=0);
+    Vh1 DS2tauShape;
+		problem computeDS2tauShape (DS2tauShape, aux1) = int2d(Th)(alpha*coefAlpha*(dx(DS2tauShape)*dx(aux1)+dy(DS2tauShape)*dy(aux1))+DS2tauShape*aux1)-int1d(Th, levelset=phiTest)(grhS2*aux1)+on(1,DS2tauShape = 0)+on(2,DS2tauShape = 0);
+		Vh04 [DS2tauRhoxx, DS2tauRhoxy, DS2tauRhoyx, DS2tauRhoyy];
+
+	/* computation of xsiJshape and xsiCshape */
+		real DS1gradJ, DS2gradJ, DS1DS1tauShape, DS1DS2tauShape, DS2DS1tauShape, DS2DS2tauShape, detGV;
+		real D11, D12, D21, D22, det, auxXsiJ1, auxXsiJ2, auxXsiC1, auxXsiC2;
+		Vh1 xsiJshape, xsiCshape;
+		Vh0 vec;
+		real psVecVec1;
+		varf vecP0toP1(xsiCshape,aux1) = int2d(Th)(xsiCshape*aux1);
+		matrix AvecP0toP1=vecP0toP1(Vh1,Vh1);
+		varf vecP0toP1rhs(xsiCshape, aux1) = int2d(Th)(vec*aux1);
+
+
+	/* computation of xsiJrho and xsiCrho */
+		real DS1DS1tauRho, DS1DS2tauRho, DS2DS1tauRho, DS2DS2tauRho, detGrho, DS1tauRhoAux, DS2tauRhoAux;
+		Vh04 [xsiJrhoxx, xsiJrhoxy, xsiJrhoyx, xsiJrhoyy], [xsiCrhoxx,xsiCrhoxy,xsiCrhoyx,xsiCrhoyy],[xsiCrhoDETGRxx,xsiCrhoDETGRxy,xsiCrhoDETGRyx,xsiCrhoDETGRyy];
+		Vh04 [vecRhoxx, vecRhoxy, vecRhoyx, vecRhoyy];
+
+
+	/* alpha JC */
+		real alphaJ, alphaJn0, alphaC;
+		real normInfxsiJshape, normInfxsiJrho;
+		real normInfxsiCshape, normInfxsiCrho;
+
+
+	/* For the merit function */
+		real multLambdaS1, multLambdaS2;
+		real meritFunction, meritFunctionTest;
+
+	/* Normal, curvature and velocities */
+		/* normal computation */
+		Vh1 nx, ny, norme; Vh12 [zx,zy], [n1x, n1y];
+		Vh0 H, nabla; Vh02 [nx0,ny0];
+		varf reconsN([zx,zy],[aux12x,aux12y]) = int2d(Th)(zx*aux12x+zy*aux12y);
+		matrix Anormal=reconsN(Vh12,Vh12);
+		varf reconsNrhs([zx,zy],[aux12x,aux12y]) = int2d(Th)(nx0*aux12x+ny0*aux12y);
+
+		/* velocities */
+		Vh1 vh, vhEff;
+		Vh04 [rhoTildexx,rhoTildexy,rhoTildeyx,rhoTildeyy], [rhoTildeEffxx,rhoTildeEffxy,rhoTildeEffyx,rhoTildeEffyy];
+
+	/* second loop */
+		real deltat;
+		int k;
+
+
+		Vh1 test;
+		real test1, test2, test3, test4, test5, test6;
+
+		real compliance, displacement;
+/* ----------------------------------------------------------------------------- */
+/* ------------------------------- INITIALISATION ------------------------------ */
+/* ----------------------------------------------------------------------------- */
+
+cout<<"------------------------------"<<endl;
+cout<<"			ITERATION "<<0<<"					"<<endl;
+cout<<"------------------------------"<<endl;
+
+		/* INITIALISATION */
+			initialisation(phi, case, ini, kx, ky, file, np, dummy, loadsol);
+			distance(Th, phi, redist[], distmax=10);
+			phi[]=redist[];
+			phiTest = phi;
+
+      [rhoTestxx, rhoTestxy, rhoTestyx, rhoTestyy] = [x,y,y,x];
+			projection; /* projection changes rho and thus rhoTestxx != rhoTestyy after projection. However, rho stays symetrical */
+			[rhoTestxx,rhoTestxy,rhoTestyx,rhoTestyy] = [rhoTestxx-dx(rhoPx),rhoTestxy-(dx(rhoPy)+dy(rhoPx))/2.,rhoTestyx-(dx(rhoPy)+dy(rhoPx))/2.,rhoTestyy-dy(rhoPy)];
+			[rhoxx, rhoxy, rhoyx, rhoyy] = [rhoTestxx,rhoTestxy,rhoTestyx,rhoTestyy];
+
+
+		/* J AND CONSTRAINTS COMPUTATION */
+			/* DENSITY */
+				X=eps1+(1-eps1)*(phi<0);
+			/* ELASTICITY */
+				elas;
+				[Euxx,Euxy,Euyx,Euyy] = [dx(ux),(dx(uy)+dy(ux))/2.,(dx(uy)+dy(ux))/2.,dy(uy)];
+				[sigmaExx,sigmaExy,sigmaEyx,sigmaEyy] = [(2*mu+lambda)*Euxx+lambda*Euyy,2*mu*Euxy,2*mu*Euyx,(2*mu+lambda)*Euyy+lambda*Euxx];
+				[sigmaERhoxx, sigmaERhoxy, sigmaERhoyx, sigmaERhoyy] = [sigmaExx+rhoxx,sigmaExy+rhoxy,sigmaEyx+rhoyx,sigmaEyy+rhoyy];
+
+
+			/* J COMPUTATION */
+				J = int2d(Th)(X);
+
+				compliance = int1d(Th,1)(gx*ux+gy*uy);
+				displacement = int1d(Th,1)(ux*ux+uy*uy);
+
+			/* S1 COMPUTATION */
+				VonMisesCompute(VM1, rhoxx,rhoxy,rhoyx,rhoyy);
+				toIntegrateS1 =  VM1 - yieldStress;
+				toIntegrateS1 = max(toIntegrateS1, 0.);
+				S1 = int2d(Th)(X*hreg(toIntegrateS1,epsilonReg));
+							/*plot(toIntegrateS1, fill=1, value = 1, WindowIndex = 10);*/
+
+			/* S2 COMPUTATION */
+				VonMisesCompute(VM2, sigmaERhoxx, sigmaERhoxy, sigmaERhoyx, sigmaERhoyy);
+				toIntegrateS2 = VM2 - yieldStress;
+				toIntegrateS2 = max(toIntegrateS2, 0.);
+				S2 = int2d(Th)(X*hreg(toIntegrateS2,epsilonReg));
+							/*plot(toIntegrateS2, fill=1, value = 1, WindowIndex = 11);*/
+
+				cout<<"J = "<<J<<endl;
+				cout<<"S1 = "<<S1<<endl;
+				cout<<"S2 = "<<S2<<endl;
+				cout<<"compliance = "<<compliance<<endl;
+				cout<<"displacement = "<<displacement<<endl;
+
+				{svol = pathResults+"/valeurs.data";
+					ofstream f(svol);
+					f<<0<<" "<<J<<" "<<S1<<" "<<S2<<" "<<compliance<<" "<<displacement<<endl;}
+				savesol(pathGraph+"/phi000.sol",Th,phi);
+
+				if (plotStore == 1) {
+					plot(phi, fill=1, value=1, viso = visoV, cmm = "it 0;   J="+J+"; S1="+S1+"; S2="+S2+"; cply="+compliance+"; disp="+displacement, ps = pathGraphpngPhi+"/phi000");
+					plot(rhoxx, fill=1, value=1, viso = visoV, cmm = "it 0;   J="+J+"; S1="+S1+"; S2="+S2+"; cply="+compliance+"; disp="+displacement, ps = pathGraphpngRhoxx+"/rhoxx000");
+					plot(rhoxy, fill=1, value=1, viso = visoV, cmm = "it 0;   J="+J+"; S1="+S1+"; S2="+S2+"; cply="+compliance+"; disp="+displacement, ps = pathGraphpngRhoxy+"/rhoxy000");
+					plot(rhoyx, fill=1, value=1, viso = visoV, cmm = "it 0;   J="+J+"; S1="+S1+"; S2="+S2+"; cply="+compliance+"; disp="+displacement, ps = pathGraphpngRhoyx+"/rhoyx000");
+					plot(rhoyy, fill=1, value=1, viso = visoV, cmm = "it 0;   J="+J+"; S1="+S1+"; S2="+S2+"; cply="+compliance+"; disp="+displacement, ps = pathGraphpngRhoyy+"/rhoyy000");
+				}
+
+				if(plotIndice == 1){plot(phi, fill = 1, value=1, viso = visoV, cmm = "it 0;   J="+J+"; S1="+S1+"; S2="+S2);}
+
+
+/* LOOP */
+	for (int iteration = 0; iteration<maxIter; iteration = iteration +1){
+			cout<<"------------------------------"<<endl;
+			cout<<"			ITERATION "<<iteration<<"					"<<endl;
+			cout<<"------------------------------"<<endl;
+
+			if (iteration%20 == 0){tolMerit = tolMerit*0.7;}
+			cout<<"tolMerit = "<<tolMerit<<endl;
+			cout<<endl;
+
+			/* VELOCITY PREPARATION */
+
+					/* GradJ COMPUTATION */
+						/* shape */
+							grhJ = 1.;
+							computeGradJV;
+						/* rho */
+							[gradJrhoxx,gradJrhoxy,gradJrhoyx,gradJrhoyy] = [0.,0.,0.,0.];
+
+					/* DS1tau COMPUTATION */
+						/* shape */
+							grhS1 = hreg(toIntegrateS1,epsilonReg);
+							computeDS1tauShape;
+						/* rho */
+							gradVM(gradVM1xx, gradVM1xy, gradVM1yx, gradVM1yy, rhoxx,rhoxy,rhoyx,rhoyy, VM1, eps1);
+							[DS1tauRhoxx, DS1tauRhoxy, DS1tauRhoyx, DS1tauRhoyy] = [hregPrime(toIntegrateS1,epsilonReg)*gradVM1xx, hregPrime(toIntegrateS1,epsilonReg)*gradVM1xy, hregPrime(toIntegrateS1,epsilonReg)*gradVM1yx, hregPrime(toIntegrateS1,epsilonReg)*gradVM1yy];
+
+					/* DS2tau COMPUTATION */
+						/* shape (adjoint) */
+							gradVM(gradVM2xx, gradVM2xy, gradVM2yx, gradVM2yy, sigmaERhoxx,sigmaERhoxy,sigmaERhoyx,sigmaERhoyy, VM2, eps1);
+							computeStress (rhsAdjP0xx,rhsAdjP0xy,rhsAdjP0yx,rhsAdjP0yy,gradVM2xx, gradVM2xy, gradVM2yx, gradVM2yy,lambda,mu);
+							[rhsAdjP0xx, rhsAdjP0xy, rhsAdjP0yx, rhsAdjP0yy] = [hregPrime(toIntegrateS2,epsilonReg)*rhsAdjP0xx, hregPrime(toIntegrateS2,epsilonReg)*rhsAdjP0xy, hregPrime(toIntegrateS2,epsilonReg)*rhsAdjP0yx, hregPrime(toIntegrateS2,epsilonReg)*rhsAdjP0yy];
+							adjoint;
+
+							[Epxx,Epxy,Epyx,Epyy] = [dx(px),(dx(py)+dy(px))/2.,(dx(py)+dy(px))/2.,dy(py)];
+							grhS2 = hreg(toIntegrateS2,epsilonReg) + sigmaExx*Epxx + sigmaExy*Epxy + sigmaEyx*Epyx + sigmaEyy*Epyy;
+							computeDS2tauShape;
+
+							/* rho */
+							[DS2tauRhoxx, DS2tauRhoxy, DS2tauRhoyx, DS2tauRhoyy] = [hreg(toIntegrateS2,epsilonReg)*gradVM2xx, hreg(toIntegrateS2,epsilonReg)*gradVM2xy, hreg(toIntegrateS2,epsilonReg)*gradVM2yx, hreg(toIntegrateS2,epsilonReg)*gradVM2yy];
+
+
+					/* DSDStau COMPUTATION */
+						DS1DS1tauShape = int1d(Th, levelset = phi)(grhS1*DS1tauShape);
+						DS1DS2tauShape = int1d(Th, levelset = phi)(grhS1*DS2tauShape);
+						DS2DS1tauShape = int1d(Th, levelset = phi)(grhS2*DS1tauShape);
+						DS2DS2tauShape = int1d(Th, levelset = phi)(grhS2*DS2tauShape);
+
+						DS1DS1tauRho = int2d(Th)(DS1tauRhoxx*DS1tauRhoxx+DS1tauRhoxy*DS1tauRhoxy+DS1tauRhoyx*DS1tauRhoyx+DS1tauRhoyy*DS1tauRhoyy);
+						DS1DS2tauRho = int2d(Th)(DS1tauRhoxx*DS2tauRhoxx+DS1tauRhoxy*DS2tauRhoxy+DS1tauRhoyx*DS2tauRhoyx+DS1tauRhoyy*DS2tauRhoyy);
+						DS2DS1tauRho = int2d(Th)(DS2tauRhoxx*DS1tauRhoxx+DS2tauRhoxy*DS1tauRhoxy+DS2tauRhoyx*DS1tauRhoyx+DS2tauRhoyy*DS1tauRhoyy);
+						DS2DS2tauRho = int2d(Th)(DS2tauRhoxx*DS2tauRhoxx+DS2tauRhoxy*DS2tauRhoxy+DS2tauRhoyx*DS2tauRhoyx+DS2tauRhoyy*DS2tauRhoyy);
+
+						D11 = DS1DS1tauShape+DS1DS1tauRho;
+						D12 = DS1DS2tauShape+DS1DS2tauRho;
+						D21 = DS2DS1tauShape+DS2DS1tauRho;
+						D22 = DS2DS2tauShape+DS2DS2tauRho;
+
+						det = D11*D22-D12*D21;
+
+					/* xsiJshape and xsiCshape COMPUTATION */
+						DS1gradJ = int1d(Th, levelset = phi)(grhS1*gradJshape);
+						DS2gradJ = int1d(Th, levelset = phi)(grhS2*gradJshape);
+
+						if(det == 0){cout<<"det = 0, probleme"<<endl;}
+
+						auxXsiJ1 = - ((D22*DS1gradJ-D12*DS2gradJ)/det);
+						auxXsiJ2 = -((D11*DS2gradJ-D21*DS1gradJ)/det);
+						// cout<<"auxXsiJ1 = "<<auxXsiJ1<<endl;
+						// cout<<"auxXsiJ2 = "<<auxXsiJ2<<endl;
+						// cout<<endl;
+						xsiJshape = gradJshape + auxXsiJ1*DS1tauShape + auxXsiJ2*DS2tauShape;
+						[xsiJrhoxx,xsiJrhoxy,xsiJrhoyx,xsiJrhoyy] = [auxXsiJ1*DS1tauRhoxx+auxXsiJ2*DS2tauRhoxx,auxXsiJ1*DS1tauRhoxy+auxXsiJ2*DS2tauRhoxy,auxXsiJ1*DS1tauRhoyx+auxXsiJ2*DS2tauRhoyx, auxXsiJ1*DS1tauRhoyy+auxXsiJ2*DS2tauRhoyy];
+						// cout<<"max xsiJshape = "<<xsiJshape[].max<<"; "<<-xsiJshape[].min<<endl;
+						// cout<<"max xsiJrhoxx = "<<xsiJrhoxx[].max<<"; "<<-xsiJrhoxx[].min<<endl;
+						// cout<<"max xsiJrhoxy = "<<xsiJrhoxy[].max<<"; "<<-xsiJrhoxy[].min<<endl;
+						// cout<<"max xsiJrhoyx = "<<xsiJrhoyx[].max<<"; "<<-xsiJrhoyx[].min<<endl;
+						// cout<<"max xsiJrhoyy = "<<xsiJrhoyy[].max<<"; "<<-xsiJrhoyy[].min<<endl;
+
+
+						auxXsiC1 = ((D22*S1-D12*S2)/det);
+						auxXsiC2 = ((D11*S2-D21*S1)/det);
+						xsiCshape = auxXsiC1*DS1tauShape + auxXsiC2*DS2tauShape;
+						// cout<<"max xsiCshape = "<<xsiCshape[].max<<"; "<<-xsiCshape[].min<<endl;
+						[xsiCrhoxx,xsiCrhoxy,xsiCrhoyx,xsiCrhoyy] = [auxXsiC1*DS1tauRhoxx+auxXsiC2*DS2tauRhoxx,auxXsiC1*DS1tauRhoxy+auxXsiC2*DS2tauRhoxy,auxXsiC1*DS1tauRhoyx+auxXsiC2*DS2tauRhoyx, auxXsiC1*DS1tauRhoyy+auxXsiC2*DS2tauRhoyy];
+						// cout<<"max xsiCrhoxx = "<<xsiCrhoxx[].max<<"; "<<-xsiCrhoxx[].min<<endl;
+						// cout<<"max xsiCrhoxy = "<<xsiCrhoxy[].max<<"; "<<-xsiCrhoxy[].min<<endl;
+						// cout<<"max xsiCrhoyx = "<<xsiCrhoyx[].max<<"; "<<-xsiCrhoyx[].min<<endl;
+						// cout<<"max xsiCrhoyy = "<<xsiCrhoyy[].max<<"; "<<-xsiCrhoyy[].min<<endl;
+
+			 			test1 = int1d(Th,levelset = phi)(grhS1*xsiJshape)+int2d(Th)(DS1tauRhoxx*xsiJrhoxx+DS1tauRhoxy*xsiJrhoxy+DS1tauRhoyx*xsiJrhoyx+DS1tauRhoyy*xsiJrhoyy);
+			 			test2 = int1d(Th,levelset = phi)(grhS2*xsiJshape)+int2d(Th)(DS2tauRhoxx*xsiJrhoxx+DS2tauRhoxy*xsiJrhoxy+DS2tauRhoyx*xsiJrhoyx+DS2tauRhoyy*xsiJrhoyy);
+			 			test3 = int1d(Th,levelset = phi)(grhS1*xsiCshape) + int2d(Th)(DS1tauRhoxx*xsiCrhoxx+DS1tauRhoxy*xsiCrhoxy+DS1tauRhoyx*xsiCrhoyx+DS1tauRhoyy*xsiCrhoyy)-S1;
+			 			test4 = int1d(Th,levelset = phi)(grhS2*xsiCshape) + int2d(Th)(DS2tauRhoxx*xsiCrhoxx+DS2tauRhoxy*xsiCrhoxy+DS2tauRhoyx*xsiCrhoyx+DS2tauRhoyy*xsiCrhoyy)-S2;
+						//
+				 		// cout<<"test1 = "<<test1<<endl;
+				 		// cout<<"test2 = "<<test2<<endl;
+				 		// cout<<"test3 = "<<test3<<endl;
+				 		// cout<<"test4 = "<<test4<<endl;
+
+
+					/* COMPUTATION OF alphaJC */
+				 		 	normInfxsiJshape  = max(xsiJshape[].max,-xsiJshape[].min);
+				 		 	normInfxsiJrho  = max(xsiJrhoxx[].max,-xsiJrhoxx[].min);
+				 		 	normInfxsiJrho = max(normInfxsiJrho, xsiJrhoxy[].max);
+				 		 	normInfxsiJrho = max(normInfxsiJrho, -xsiJrhoxy[].min);
+				 			normInfxsiJrho = max(normInfxsiJrho, xsiJrhoyx[].max);
+				 			normInfxsiJrho = max(normInfxsiJrho, -xsiJrhoyx[].min);
+				 			normInfxsiJrho = max(normInfxsiJrho, xsiJrhoyy[].max);
+				 			normInfxsiJrho = max(normInfxsiJrho, -xsiJrhoyy[].min);
+
+				 			alphaJ = max(normInfxsiJshape,normInfxsiJrho);
+				 		 	if (alphaJ == 0){alphaJ = 0;}
+				 		 	else{
+				 		 		if (iteration < n0) {alphaJ = meshsiz*Aj/alphaJ;}
+				 				else{
+				 				if (n == n0) {alphaJn0 = alphaJ;}
+				 				alphaJ = max(alphaJ, alphaJn0);
+				 				alphaJ = meshsiz*Aj/alphaJ;
+				 				}
+				 		 	}
+
+				 			normInfxsiCshape  = max(xsiCshape[].max,-xsiCshape[].min);
+				 			normInfxsiCrho  = max(xsiCrhoxx[].max,-xsiCrhoxx[].min);
+				 			normInfxsiCrho = max(normInfxsiCrho, xsiCrhoxy[].max);
+				 			normInfxsiCrho = max(normInfxsiCrho, -xsiCrhoxy[].min);
+				 			normInfxsiCrho = max(normInfxsiCrho, xsiCrhoyx[].max);
+				 			normInfxsiCrho = max(normInfxsiCrho, -xsiCrhoyx[].min);
+				 			normInfxsiCrho = max(normInfxsiCrho, xsiCrhoyy[].max);
+				 			normInfxsiCrho = max(normInfxsiCrho, -xsiCrhoyy[].min);
+
+				 			alphaC = max(normInfxsiCshape,normInfxsiCrho);
+				 			alphaC = max(0.000000001, alphaC);
+				 			alphaC = Ac*meshsiz/alphaC;
+				 			alphaC = min(0.9, alphaC);
+							// cout<<"alphaC = "<<alphaC<<endl;
+
+					/* MERIT FUNCTION */
+							multLambdaS1 = (D12*DS2gradJ-D22*DS1gradJ)/det;
+							multLambdaS2 = (D21*DS1gradJ-D11*DS2gradJ)/det;
+				 			meritFunction = alphaJ*(J+multLambdaS1*S1+multLambdaS2*S2)+0.5*alphaC*(D22*S1*S1-(D12+D21)*S1*S2+D11*S2*S2)/det;
+				 			cout<<"meritFunction = "<<meritFunction<<endl;
+
+
+					/* VELOCITY AND DERIVATIVES */
+						/* -------- Normal and curvature -------- */
+							nabla=(dx(phi))^2+(dy(phi))^2;
+							[nx0,ny0]=[dx(phi)/(sqrt(nabla+eps1^2)),dy(phi)/(sqrt(nabla+eps1^2))];
+							real[int] bNormal=reconsNrhs(0,Vh12);
+							zx[]=Anormal^-1*bNormal;
+							norme = sqrt(zx^2+zy^2+eps1^2);
+							nx=zx/norme; ny=zy/norme;
+							H=dx(nx)+dy(ny);
+
+						vh = (alphaJ*xsiJshape+alphaC*xsiCshape);
+						[rhoTildexx,rhoTildexy,rhoTildeyx,rhoTildeyy] = [(alphaJ*xsiJrhoxx+alphaC*xsiCrhoxx),(alphaJ*xsiJrhoxy+alphaC*xsiCrhoxy),(alphaJ*xsiJrhoyx+alphaC*xsiCrhoyx),(alphaJ*xsiJrhoyy+alphaC*xsiCrhoyy)];
+						vh = -vh;
+						// cout<<"alphaJ*xsiJ = "<<alphaJ*(xsiJshape[].max)<<"; "<<alphaJ*(xsiJshape[].min)<<endl;
+						// cout<<"alphaC*xsiC = "<<alphaC*(xsiCshape[].max)<<"; "<<alphaC*(xsiCshape[].min)<<endl;
+
+						[rhoTildexx,rhoTildexy,rhoTildeyx,rhoTildeyy] = [-rhoTildexx,-rhoTildexy,-rhoTildeyx,-rhoTildeyy];
+						[n1x,n1y] = [vh*nx,vh*ny];
+
+		/* SECOND LOOP */
+					deltat = deltatIni;
+					k = 0;
+
+			while (k<maxTrials){
+					cout<<endl;
+					cout<<"k = "<<k<<endl;
+					phiTest = phi;
+					JTest = 0; S1Test = 1; S2Test = 0; meritFunctionTest = 0;
+
+					/* Advection */
+					cout<<"deltat avant advection = "<<deltat<<endl;
+						savesol(pathAnnex+"/templvs.chi.sol",Th,phiTest);
+						savesol(pathAnnex+"/templvs.sol",Th,[n1x,n1y]);
+						exec("/Users/mathilde/bin/advect "+pathAnnex+"/templvs.mesh -dt " + deltat + " -s "+pathAnnex+"/templvs.sol -c "+pathAnnex+"/templvs.chi.sol -o "+pathAnnex+"/templvs.chi.sol >> "+pathAnnex+"/so.res ");
+
+						{ifstream f(pathAnnex+"/templvs.chi.sol");
+							for(int i=0; i<8; i++) {
+								f>>dummy;
+							}
+							for(int i=0; i<np; i++) {
+									f>>loadsol[i];
+							}
+						phiTest[] = loadsol;}
+
+						if(nonOptSpace == 1){
+							phiTest = (x<0.125)*(phiTest>=0)*(-1-phiTest)+phiTest;
+							phiTest = (x>1.875)*(y<1.1)*(y>0.9)*(phiTest>=0)*(-1-phiTest)+phiTest;
+						}
+
+						distance(Th, phiTest, redist[], distmax=10);
+						phiTest[]=redist[];
+
+						[rhoTestxx,rhoTestxy,rhoTestyx,rhoTestyy] = [rhoxx+deltat*rhoTildexx,rhoxy+deltat*rhoTildexy,rhoyx+deltat*rhoTildeyx,rhoyy+deltat*rhoTildeyy];
+						projection;
+						[rhoTestxx,rhoTestxy,rhoTestyx,rhoTestyy] = [rhoTestxx-dx(rhoPx),rhoTestxy-(dx(rhoPy)+dy(rhoPx))/2.,rhoTestyx-(dx(rhoPy)+dy(rhoPx))/2.,rhoTestyy-dy(rhoPy)];
+
+						X=eps1+(1-eps1)*(phiTest<0);
+						elas;
+						[Euxx,Euxy,Euyx,Euyy] = [dx(ux),(dx(uy)+dy(ux))/2.,(dx(uy)+dy(ux))/2.,dy(uy)];
+						[sigmaExx,sigmaExy,sigmaEyx,sigmaEyy] = [(2*mu+lambda)*Euxx+lambda*Euyy,2*mu*Euxy,2*mu*Euyx,(2*mu+lambda)*Euyy+lambda*Euxx];
+						[sigmaERhoxx, sigmaERhoxy, sigmaERhoyx, sigmaERhoyy] = [sigmaExx+rhoTestxx,sigmaExy+rhoTestxy,sigmaEyx+rhoTestyx,sigmaEyy+rhoTestyy];
+
+						JTest = int2d(Th)(X);
+						VonMisesCompute(VM1, rhoTestxx,rhoTestxy,rhoTestyx,rhoTestyy);
+						toIntegrateS1 =  VM1 - yieldStress;
+						toIntegrateS1 = max(toIntegrateS1, 0.);
+		 				S1Test = int2d(Th)(X*hreg(toIntegrateS1,epsilonReg));
+		 				VonMisesCompute(VM2, sigmaERhoxx, sigmaERhoxy, sigmaERhoyx, sigmaERhoyy);
+		 				toIntegrateS2 = VM2 - yieldStress;
+		 				toIntegrateS2 = max(toIntegrateS2, 0.);
+		 				S2Test = int2d(Th)(X*hreg(toIntegrateS2,epsilonReg));
+
+						cout<<"J = "<<J<<endl;
+						cout<<"JTest = "<<JTest<<endl;
+						cout<<"S1 = "<<S1<<endl;
+						cout<<"S1Test = "<<S1Test<<endl;
+						cout<<"S2 = "<<S2<<endl;
+						cout<<"S2Test = "<<S2Test<<endl;
+						cout<<endl;
+						cout<<"multLambdaS1="<<multLambdaS1<<endl;
+						cout<<"multLambdaS2="<<multLambdaS2<<endl;
+		 				meritFunctionTest = alphaJ*(JTest+multLambdaS1*S1Test+multLambdaS2*S2Test)+0.5*alphaC*(D22*S1Test*S1Test-(D12+D21)*S1Test*S2Test+D11*S2Test*S2Test)/det;
+
+						cout<<"meritFunction = "<<meritFunction<<endl;
+						cout<<"meritFunctionTest = "<<meritFunctionTest<<endl;
+						cout<<endl;
+						if(meritFunctionTest<meritFunction + tolMerit*abs(meritFunction)){
+							k = maxTrials+1;
+						}
+						else{
+							deltat = deltat*0.5;
+							cout<<"deltat = "<<deltat<<endl;
+							k = k+1;
+						}
+				}
+
+			  phi = phiTest; J = JTest; S1 = S1Test; S2 = S2Test;
+				cout<<"J = "<<J<<endl;
+				cout<<"S1 = "<<S1<<endl;
+				cout<<"S2 = "<<S2<<endl;
+				cout<<"compliance = "<<compliance<<endl;
+				cout<<"displacement = "<<displacement<<endl;
+				[rhoxx,rhoxy,rhoyx,rhoyy] = [rhoTestxx,rhoTestxy,rhoTestyx,rhoTestyy];
+				compliance = int1d(Th,1)(gx*ux+gy*uy);
+				displacement = int1d(Th,1)(ux*ux+uy*uy);
+
+				if (plotIndice == 1) {
+					plot(phi, fill=1, value=1, viso = visoV, cmm = "it "+iteration+";   J="+J+"; S1="+S1+"; S2="+S2);
+				}
+
+				{svol = pathResults+"/valeurs.data";
+					ofstream f(svol, append);
+					f<<iteration<<" "<<J<<" "<<S1<<" "<<S2<<" "<<compliance<<" "<<displacement<<endl;}
+
+				if(iteration<10){
+					savesol(pathGraph+"/phi00"+iteration+".sol",Th,phi);
+				}
+				if(9<iteration && iteration<100){
+					savesol(pathGraph+"/phi0"+iteration+".sol",Th,phi);
+					if (iteration%10==0){
+						if(plotStore == 1){
+							plot(phi, fill=1, value=1, viso = visoV, cmm = "it "+iteration+";   J="+J+"; S1="+S1+"; S2="+S2+"; cply="+compliance+"; disp="+displacement, ps = pathGraphpngPhi+"/phi0"+iteration);
+							plot(rhoxx, fill=1, value=1, viso = visoV, cmm = "it "+iteration+"   J="+J+"; S1="+S1+"; S2="+S2 + "; cply="+compliance+"; disp="+displacement, ps = pathGraphpngRhoxx+"/rhoxx0"+iteration);
+							plot(rhoxy, fill=1, value=1, viso = visoV, cmm = "it "+iteration+"   J="+J+"; S1="+S1+"; S2="+S2 + "; cply="+compliance+"; disp="+displacement, ps = pathGraphpngRhoxy+"/rhoxy0"+iteration);
+							plot(rhoyx, fill=1, value=1, viso = visoV, cmm = "it "+iteration+"   J="+J+"; S1="+S1+"; S2="+S2 + "; cply="+compliance+"; disp="+displacement, ps = pathGraphpngRhoyx+"/rhoyx0"+iteration);
+							plot(rhoyy, fill=1, value=1, viso = visoV, cmm = "it "+iteration+"   J="+J+"; S1="+S1+"; S2="+S2 + "; cply="+compliance+"; disp="+displacement, ps = pathGraphpngRhoyy+"/rhoyy0"+iteration);
+						}
+					}
+				}
+				if(99<iteration){
+					savesol(pathGraph+"/phi"+iteration+".sol",Th,phi);
+					if (iteration%10==0){
+						if(plotStore == 1){
+							plot(phi, fill=1, value=1, viso = visoV, cmm = "it "+iteration+";   J="+J+"; S1="+S1+"; S2="+S2+"; cply="+compliance+"; disp="+displacement, ps = pathGraphpngPhi+"/phi"+iteration);
+							plot(rhoxx, fill=1, value=1, viso = visoV, cmm = "it "+iteration+"   J="+J+"; S1="+S1+"; S2="+S2 + "; cply="+compliance+"; disp="+displacement, ps = pathGraphpngRhoxx+"/rhoxx"+iteration);
+							plot(rhoxy, fill=1, value=1, viso = visoV, cmm = "it "+iteration+"   J="+J+"; S1="+S1+"; S2="+S2 + "; cply="+compliance+"; disp="+displacement, ps = pathGraphpngRhoxy+"/rhoxy"+iteration);
+							plot(rhoyx, fill=1, value=1, viso = visoV, cmm = "it "+iteration+"   J="+J+"; S1="+S1+"; S2="+S2 + "; cply="+compliance+"; disp="+displacement, ps = pathGraphpngRhoyx+"/rhoyx"+iteration);
+							plot(rhoyy, fill=1, value=1, viso = visoV, cmm = "it "+iteration+"   J="+J+"; S1="+S1+"; S2="+S2 + "; cply="+compliance+"; disp="+displacement, ps = pathGraphpngRhoyy+"/rhoyy"+iteration);
+						}
+					}
+				}
+}
+
+
+int lastIt = maxIter-1;
+
+if(lastIt<10){pathLast = pathGraph+"/phi00"+lastIt+".sol";}
+if(9<lastIt && lastIt<100){pathLast = pathGraph+"/phi0"+lastIt+".sol";}
+if(99<lastIt){pathLast = pathGraph+"/phi"+lastIt+".sol";}
+
+
+/* ------------------------------- Results treatment ---------------------------------- */
+	exec("python /Users/mathilde/These/Projets/Lehigh/configuration_files/pltvariables.py -nomVar iteration J S1 S2 compliance displacement -fichier "+pathResults+"/valeurs.data -stockage "+pathResults);
+	exec("cp "+pathLast+" "+pathResults+"/final.sol");

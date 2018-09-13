@@ -1,0 +1,87 @@
+
+
+/* -------------------------------------------------------------------------- */
+		/* ------- Mesh and case ------- */
+		/* n = mesh precision
+	   case : cantilever_long, cantilever_short
+		 initialisation : classic, aymeric
+	   initialisation : kx = nb of holes in the x direction and ky same in y (ini=1) or initialisation by a solution of optimization of compliance and volume (ini=2) */
+			int n=3;
+			string case="cantilever_long";
+			string ini="aymeric";
+			string file;
+			int kx=5; int ky=3;
+
+/* -------------------------------------------------------------------------- */
+		/* ------- Elastic parameters ------- */
+			/* Coefficients */
+				real Eyoung = 1960;
+				real poisson = 0.30;
+				real yieldStress = 0.95;
+
+			/* Loading */
+				real gx=0; real gy=-1.1;
+
+/* -------------------------------------------------------------------------- */
+		/* --- Model (objF and constraints) --- */
+			/* normalized constraints */
+				int normalized = 1;
+
+			/* constraint regularization parameter */
+				real epsilonReg = 0.00001;
+
+			/* parameters optimization method */
+				real deltatIni = 1.;
+				real tolMerit = 0.;
+				string tolMeritS = "0";
+				real Aj = 1.;
+				real Ac = 0.4;
+				string AjS = "1";
+				string AcS = "0s4";
+				real coefAlpha = 1.;
+				int n0 = 180;
+				int maxTrials = 12;
+				int maxIter = 200;
+
+
+			/* Modelization */
+				real eps1=0.0001;
+				real eps = 0.000001;
+				int nonOptSpace = 0;
+
+/* -------------------------------------------------------------------------- */
+		/* ------- Visualisation ------- */
+				verbosity = 0;
+				int debug = 1;
+			/* Results visualisation */
+				int plotIndice = 1;
+				int plotIndiceTest = 0;
+				int plotStore = 1;
+				real[int] visoV=[-50,-0.01,0.01,50];
+
+
+
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+func string toString (real nb){
+	string res;
+	int a = floor(nb);
+	real b = nb-a;
+	int k = 1;
+	while (abs(floor(b)-b)<0.0000000001 && k<=15){
+		b = b*10;
+		k = k+1;
+	}
+	if (k == 15) {cout<<"problem in the parameters translation to string"<<endl;}
+	res = a+ "-" +int(b);
+	return(res);
+}
+
+string EyoungS = toString(Eyoung);
+string poissonS = toString(poisson);
+string yieldstressS = toString(yieldStress);
+string coefAlphaS = toString(coefAlpha);
+string deltatIniS = toString(deltatIni);
